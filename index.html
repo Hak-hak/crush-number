@@ -81,8 +81,9 @@
             box-shadow: none;
         }
 
+        /* Thêm style cho ô được chọn */
         #game-board div.selected {
-            transform: scale(1.1);
+            transform: scale(1.15);
             box-shadow: 0 0 10px 3px #f1c40f;
             z-index: 10;
         }
@@ -148,6 +149,7 @@
             let currentCandies = [];
             let currentTargetScore = 0;
             
+            // Thay thế các biến kéo-thả bằng biến cho ô được chọn
             let firstCellClicked = null;
 
             function setupLevel(level) {
@@ -179,7 +181,7 @@
                     cells.push(cell);
                 }
                 fillBoardWithValidCandies();
-                // THAY ĐỔI: Sử dụng sự kiện 'pointerdown' thay cho 'click'
+                // THAY ĐỔI: Sử dụng sự kiện 'pointerdown' (hoạt động cho cả chuột và chạm)
                 cells.forEach(cell => cell.addEventListener('pointerdown', handleCellClick));
             }
 
@@ -201,31 +203,30 @@
                     cell.textContent = '';
                     cell.style.backgroundColor = 'transparent';
                     cell.style.boxShadow = 'none';
-                    cell.classList.add('empty');
                 } else {
                     cell.textContent = candyData.name;
                     cell.style.backgroundColor = candyData.color;
                     cell.style.boxShadow = 'inset 0 -4px 0 rgba(0,0,0,0.2)';
-                    cell.classList.remove('empty');
                 }
             }
             
+            // THAY ĐỔI: Logic hoàn toàn mới để xử lý chạm/click
             function handleCellClick() {
                 if (isProcessing) return;
                 
                 const clickedCell = this;
 
                 if (!firstCellClicked) {
+                    // Lần chạm đầu tiên: chọn ô
                     firstCellClicked = clickedCell;
                     firstCellClicked.classList.add('selected');
                     return;
                 }
 
+                // Lần chạm thứ hai:
                 const secondCellClicked = clickedCell;
-                
-                // Bỏ hiệu ứng 'selected' ngay lập tức
                 firstCellClicked.classList.remove('selected');
-                
+
                 if (firstCellClicked === secondCellClicked) {
                     firstCellClicked = null;
                     return;
@@ -243,7 +244,7 @@
                     const isMatchFound = getMatches().size > 0;
                     
                     if (isMatchFound) {
-                        processMatches();
+                        processMatches(getMatches());
                     } else {
                         setTimeout(() => {
                             swapContent(firstCellClicked, secondCellClicked);
@@ -262,25 +263,20 @@
                 updateCell(cell2, data1);
             }
 
-            function processMatches() {
-                let matchedIndices = getMatches();
-                if (matchedIndices.size === 0) {
+            function processMatches(initialMatches) {
+                if (!initialMatches || initialMatches.size === 0) {
                     isProcessing = false;
                     checkLevelCompletion();
                     return;
                 }
                 
-                score += matchedIndices.size;
+                score += initialMatches.size;
                 scoreDisplay.textContent = score;
                 
-                matchedIndices.forEach(index => cells[index].classList.add('matched'));
+                initialMatches.forEach(index => cells[index].classList.add('matched'));
                 
                 setTimeout(() => {
-                    matchedIndices.forEach(index => {
-                        updateCell(cells[index], null);
-                        cells[index].classList.remove('matched');
-                    });
-                    
+                    initialMatches.forEach(index => updateCell(cells[index], null));
                     applyGravityAndRefill().then(() => {
                         setTimeout(() => processMatches(getMatches()), 200);
                     });
@@ -292,7 +288,7 @@
                     const columnData = [];
                     for (let r = width - 1; r >= 0; r--) {
                         const cell = cells[r * width + c];
-                        if (!cell.classList.contains('empty')) {
+                        if (cell.textContent !== '') {
                             columnData.push({ name: cell.textContent, color: cell.style.backgroundColor });
                         }
                     }
@@ -303,7 +299,7 @@
                     }
                 }
                 cells.forEach(cell => {
-                    if (cell.classList.contains('empty')) {
+                    if (cell.textContent === '') {
                         let randomCandy = currentCandies[Math.floor(Math.random() * currentCandies.length)];
                         updateCell(cell, randomCandy);
                     }
@@ -353,7 +349,7 @@
             }
 
             function launchFireworks() {
-                 var duration = 5 * 1000;
+                var duration = 5 * 1000;
                 var animationEnd = Date.now() + duration;
                 var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 1001 };
                 function randomInRange(min, max) { return Math.random() * (max - min) + min; }
@@ -366,7 +362,6 @@
                 }, 250);
             }
             
-            // Bắt đầu game với Vòng 1
             setupLevel(1);
         });
     </script>
