@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Number Crush</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f7f1e3;
+            margin: 0;
+            padding: 15px;
+            box-sizing: border-box;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 25px;
+            background-color: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border: 5px solid #ffb142;
+        }
+        
+        h1 {
+            color: #ff793f;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px #ffb142;
+        }
+
+        .score-board {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(8, 60px);
+            grid-template-rows: repeat(8, 60px);
+            gap: 5px;
+            background-color: #ffb142;
+            padding: 10px;
+            border-radius: 12px;
+        }
+
+        #game-board div {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            border-radius: 50%;
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.2s ease-in-out, background-color 0.2s;
+            box-shadow: inset 0 -4px 0 rgba(0,0,0,0.2);
+            text-transform: capitalize;
+        }
+        
+        #game-board div.empty {
+            background-color: transparent !important;
+            box-shadow: none;
+        }
+
+        .matched {
+            animation: shrink 0.4s forwards ease-in-out;
+        }
+
+        @keyframes shrink {
+            from { transform: scale(1.1); }
+            to { transform: scale(0); opacity: 0; }
+        }
+
+        #win-message { 
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background-color: rgba(0, 0, 0, 0.7); justify-content: center; align-items: center; z-index: 1000;
+        }
+        #win-message div { 
+            padding: 40px 60px; background-color: white; border-radius: 20px; text-align: center; 
+            animation: win-popup 0.5s ease;
+        }
+        #win-message h2 { font-size: 3rem; color: #28a745; margin: 0; }
+        @keyframes win-popup { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>Number Crush</h1>
+        <div class="score-board">Điểm: <span id="score">0</span> / <span id="target-score">100</span></div>
+        <div id="game-board"></div>
+    </div>
+    <div id="win-message">
+        <div>
+            <h2>You Win!</h2>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const gameBoard = document.getElementById('game-board');
+            const scoreDisplay = document.getElementById('score');
+            const targetScoreDisplay = document.getElementById('target-score');
+            const winMessage = document.getElementById('win-message');
+
+            const width = 8;
+            const TARGET_SCORE = 100;
+            const cells = [];
+            let score = 0;
+            let isProcessing = false;
+            
+            const numberCandies = [
+                { name: 'one', color: '#e74c3c' },
+                { name: 'two', color: '#3498db' },
+                { name: 'three', color: '#2ecc71' },
+                { name: 'four', color: '#9b59b6' },
+                { name: 'five', color: '#f1c40f' },
+                { name: 'six', color: '#1abc9c' }
+            ];
+
+            let cellBeingDragged = null;
+            let cellBeingReplaced = null;
+
+            function init() {
+                targetScoreDisplay.textContent = TARGET_SCORE;
+                scoreDisplay.textContent = score;
+
+                for (let i = 0; i < width * width; i++) {
+                    const cell = document.createElement('div');
+                    cell.setAttribute('draggable', true);
+                    cell.dataset.id = i;
+                    gameBoard.appendChild(cell);
+                    cells.push(cell);
+                }
+                
+                fillBoardWithValidCandies();
+                addEventListeners();
+            }
+
+            function fillBoardWithValidCandies() {
+                for (let i = 0; i < cells.length; i++) {
+                    let randomCandy;
+                    do {
+                        randomCandy = numberCandies[Math.floor(Math.random() * numberCandies.length)];
+                    } while (
+                        (i % width >= 2 && cells[i-1].textContent === randomCandy.name && cells[i-2].textContent === randomCandy.name) ||
+                        (i >= width * 2 && cells[i-width].textContent === randomCandy.name && cells[i-2*width].textContent === randomCandy.name)
+                    );
+                    updateCell(cells[i], randomCandy);
+                }
+            }
+            
+            function updateCell(cell, candyData) {
+                if (!candyData || !candyData.name) {
+                    cell.textContent = '';
+                    cell.style.backgroundColor = 'transparent';
+                    cell.style.boxShadow = 'none';
+                    cell.classList.add('empty');
+                } else {
+                    cell.textContent = candyData.name;
+                    cell.style.backgroundColor = candyData.color;
+                    cell.style.boxShadow = 'inset 0 -4px 0 rgba(0,0,0,0.2)';
+                    cell.classList.remove('empty');
+                }
+            }
+
+            function addEventListeners() {
+                cells.forEach(cell => {
+                    cell.addEventListener('dragstart', dragStart);
+                    cell.addEventListener('dragover', e => e.preventDefault());
+                    cell.addEventListener('drop', dragDrop);
+                    cell.addEventListener('dragend', dragEnd);
+                });
+            }
+
+            function dragStart() {
+                if (isProcessing) return;
+                cellBeingDragged = this;
+            }
+
+            function dragDrop() {
+                if (isProcessing) return;
+                cellBeingReplaced = this;
+            }
+
+            function dragEnd() {
+                if (isProcessing || !cellBeingDragged || !cellBeingReplaced) return;
+                
+                const id1 = parseInt(cellBeingDragged.dataset.id);
+                const id2 = parseInt(cellBeingReplaced.dataset.id);
+                const isAdjacent = Math.abs(id1 - id2) === 1 || Math.abs(id1 - id2) === width;
+                const isEdgeWrap = (id1 % width === 0 && id2 % width === width - 1) || (id2 % width === 0 && id1 % width === width - 1);
+
+                if (isAdjacent && !isEdgeWrap) {
+                    isProcessing = true;
+                    swapContent(cellBeingDragged, cellBeingReplaced);
+                    
+                    const matchesAfterSwap = getMatches();
+                    if (matchesAfterSwap.size > 0) {
+                        processMatches(matchesAfterSwap);
+                    } else {
+                        setTimeout(() => {
+                            swapContent(cellBeingDragged, cellBeingReplaced); // Hoán đổi lại
+                            isProcessing = false;
+                        }, 150);
+                    }
+                }
+                cellBeingDragged = null;
+                cellBeingReplaced = null;
+            }
+            
+            function swapContent(cell1, cell2) {
+                const data1 = { name: cell1.textContent, color: cell1.style.backgroundColor };
+                const data2 = { name: cell2.textContent, color: cell2.style.backgroundColor };
+                updateCell(cell1, data2);
+                updateCell(cell2, data1);
+            }
+
+            // --- HỆ THỐNG XỬ LÝ ĐÃ ĐƯỢC VIẾT LẠI HOÀN TOÀN ---
+            function processMatches(initialMatches) {
+                if (!initialMatches || initialMatches.size === 0) {
+                    isProcessing = false; // Không còn gì để xử lý, cho phép chơi tiếp
+                    checkForWin();
+                    return;
+                }
+                
+                score += initialMatches.size;
+                scoreDisplay.textContent = score;
+                
+                initialMatches.forEach(index => cells[index].classList.add('matched'));
+                
+                setTimeout(() => {
+                    // Xóa các ô đã khớp
+                    initialMatches.forEach(index => {
+                        updateCell(cells[index], null);
+                        cells[index].classList.remove('matched');
+                    });
+                    
+                    // Cho các ô rơi xuống và lấp đầy
+                    applyGravityAndRefill().then(() => {
+                        // Sau khi đã ổn định, kiểm tra lại xem có chuỗi mới không
+                        const cascadeMatches = getMatches();
+                        processMatches(cascadeMatches); // Đệ quy để xử lý combo
+                    });
+
+                }, 400); // Đợi animation shrink hoàn thành
+            }
+            
+            async function applyGravityAndRefill() {
+                // Logic trọng lực đáng tin cậy
+                for (let c = 0; c < width; c++) {
+                    const columnData = [];
+                    // Đọc dữ liệu từ dưới lên
+                    for (let r = width - 1; r >= 0; r--) {
+                        const cell = cells[r * width + c];
+                        if (!cell.classList.contains('empty')) {
+                            columnData.push({ name: cell.textContent, color: cell.style.backgroundColor });
+                        }
+                    }
+                    // Ghi dữ liệu lại từ dưới lên
+                    for (let r = width - 1; r >= 0; r--) {
+                        const cell = cells[r * width + c];
+                        const data = columnData.shift(); // Lấy dữ liệu từ dưới cùng của cột
+                        if (data) {
+                            updateCell(cell, data);
+                        } else {
+                            updateCell(cell, null);
+                        }
+                    }
+                }
+
+                // Logic lấp đầy đáng tin cậy
+                cells.forEach(cell => {
+                    if (cell.textContent === '') {
+                        let randomCandy = numberCandies[Math.floor(Math.random() * numberCandies.length)];
+                        updateCell(cell, randomCandy);
+                    }
+                });
+                // Thêm một khoảng chờ nhỏ để giao diện kịp cập nhật
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            function getMatches() {
+                const matchedIndices = new Set();
+                for (let r = 0; r < width; r++) {
+                    for (let c = 0; c < width; c++) {
+                        // Check row
+                        if (c < width - 2) {
+                            const indices = [r*width+c, r*width+c+1, r*width+c+2];
+                            const cell1 = cells[indices[0]];
+                            if (cell1.textContent && cell1.textContent === cells[indices[1]].textContent && cell1.textContent === cells[indices[2]].textContent) {
+                                indices.forEach(i => matchedIndices.add(i));
+                            }
+                        }
+                        // Check column
+                        if (r < width - 2) {
+                            const indices = [r*width+c, (r+1)*width+c, (r+2)*width+c];
+                            const cell1 = cells[indices[0]];
+                             if (cell1.textContent && cell1.textContent === cells[indices[1]].textContent && cell1.textContent === cells[indices[2]].textContent) {
+                                indices.forEach(i => matchedIndices.add(i));
+                            }
+                        }
+                    }
+                }
+                return matchedIndices;
+            }
+
+            function checkForWin() {
+                if (score >= TARGET_SCORE && !isProcessing) { // Chỉ kích hoạt khi không còn xử lý
+                    isProcessing = true;
+                    winMessage.style.display = 'flex';
+                    launchFireworks();
+                }
+            }
+
+            function launchFireworks() {
+                var duration = 3 * 1000;
+                var animationEnd = Date.now() + duration;
+                var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 1001 };
+                function randomInRange(min, max) { return Math.random() * (max - min) + min; }
+                var interval = setInterval(function() {
+                    var timeLeft = animationEnd - Date.now();
+                    if (timeLeft <= 0) return clearInterval(interval);
+                    var particleCount = 50 * (timeLeft / duration);
+                    confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+                    confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+                }, 250);
+            }
+
+            init();
+        });
+    </script>
+</body>
+</html>
