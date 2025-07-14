@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Number Crush</title>
+    <title>Number Crush Puzzle</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
     <style>
         body {
@@ -12,7 +12,7 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background-color: #f7f1e3;
+            background-color: #6a89cc; /* Màu nền mới */
             margin: 0;
             padding: 10px;
             box-sizing: border-box;
@@ -27,23 +27,14 @@
             background-color: #ffffff;
             border-radius: 20px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            border: 5px solid #ffb142;
         }
         
         h1 {
-            color: #ff793f;
+            color: #4a69bd;
             margin-bottom: 5px;
-            text-shadow: 2px 2px #ffb142;
             font-size: clamp(2rem, 6vw, 2.5rem);
         }
         
-        #level-display {
-            font-size: clamp(1rem, 4vw, 1.2rem);
-            font-weight: bold;
-            color: #005a9c;
-            margin-bottom: 10px;
-        }
-
         .score-board {
             font-size: clamp(1.2rem, 5vw, 1.5rem);
             font-weight: bold;
@@ -56,13 +47,13 @@
             grid-template-columns: repeat(8, 1fr);
             grid-template-rows: repeat(8, 1fr);
             gap: 5px;
-            background-color: #ffb142;
+            background-color: #a4b0be;
             padding: 10px;
             border-radius: 12px;
             width: 90vw; 
             height: 90vw;
-            max-width: 500px;
-            max-height: 500px;
+            max-width: 450px;
+            max-height: 450px;
         }
 
         #game-board div {
@@ -72,7 +63,7 @@
             font-size: clamp(10px, 2.5vw, 16px); 
             font-weight: bold;
             color: white;
-            border-radius: 50%;
+            border-radius: 8px; /* Hình vuông bo tròn */
             cursor: pointer;
             user-select: none;
             transition: transform 0.2s ease-in-out;
@@ -105,14 +96,14 @@
             animation: win-popup 0.5s ease;
         }
         #message-overlay h2 { font-size: 2rem; color: #28a745; margin: 0; }
+        #message-overlay p { font-size: 1rem; color: #6c757d; }
         @keyframes win-popup { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     </style>
 </head>
 <body>
     <div class="game-container">
-        <h1>Number Crush</h1>
-        <div id="level-display"></div>
-        <div class="score-board">Điểm: <span id="score">0</span> / <span id="target-score">100</span></div>
+        <h1>Number Puzzle</h1>
+        <div class="score-board">Điểm: <span id="score">0</span> / <span id="target-score">150</span></div>
         <div id="game-board"></div>
     </div>
     <div id="message-overlay">
@@ -124,77 +115,48 @@
             const gameBoard = document.getElementById('game-board');
             const scoreDisplay = document.getElementById('score');
             const targetScoreDisplay = document.getElementById('target-score');
-            const levelDisplay = document.getElementById('level-display');
             const messageOverlay = document.getElementById('message-overlay');
             const messageContent = document.getElementById('message-content');
 
             const width = 8;
+            const TARGET_SCORE = 150;
             const cells = [];
             let score = 0;
             let isProcessing = false;
             
-            let currentLevel = 1;
-            const masterCandyList = {
-                'one':   { name: 'one',   color: '#e74c3c' }, 'two':   { name: 'two',   color: '#3498db' },
-                'three': { name: 'three', color: '#2ecc71' }, 'four':  { name: 'four',  color: '#9b59b6' },
-                'five':  { name: 'five',  color: '#f1c40f' }, 'six':   { name: 'six',   color: '#1abc9c' },
-                'seven': { name: 'seven', color: '#e67e22' }, 'eight': { name: 'eight', color: '#34495e' },
-                'nine':  { name: 'nine',  color: '#7f8c8d' }, 'ten':   { name: 'ten',   color: '#d35400' }
-            };
-            const levelConfig = [
-                { level: 1, targetScore: 100, candies: ['one', 'two', 'three', 'four', 'five', 'six'] },
-                { level: 2, targetScore: 250, candies: ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'] }
+            const numberCandies = [
+                { name: 'one',   color: '#e74c3c' }, { name: 'two',   color: '#3498db' },
+                { name: 'three', color: '#2ecc71' }, { name: 'four',  color: '#9b59b6' },
+                { name: 'five',  color: '#f1c40f' }, { name: 'six',   color: '#1abc9c' }
             ];
-            let currentCandies = [];
-            let currentTargetScore = 0;
             
             let firstCellClicked = null;
 
-            function setupLevel(level) {
-                const config = levelConfig[level - 1];
-                if (!config) return;
-                currentLevel = config.level;
-                currentTargetScore = config.targetScore;
-                score = 0;
-                currentCandies = config.candies.map(name => masterCandyList[name]);
-                levelDisplay.textContent = `Vòng ${currentLevel}`;
+            function init() {
+                targetScoreDisplay.textContent = TARGET_SCORE;
                 scoreDisplay.textContent = score;
-                targetScoreDisplay.textContent = currentTargetScore;
-                gameBoard.innerHTML = '';
-                cells.length = 0;
-                isProcessing = false;
-                firstCellClicked = null;
-                createBoard();
-            }
 
-            function createBoard() {
                 for (let i = 0; i < width * width; i++) {
                     const cell = document.createElement('div');
                     cell.dataset.id = i;
                     gameBoard.appendChild(cell);
                     cells.push(cell);
                 }
-                fillBoardRandomly();
-                removeInitialMatches();
+                
+                fillBoardWithValidCandies();
                 cells.forEach(cell => cell.addEventListener('pointerdown', handleCellClick));
             }
 
-            // THAY ĐỔI: Tách hàm lấp đầy và xóa các hàng trùng ban đầu
-            function fillBoardRandomly() {
+            function fillBoardWithValidCandies() {
                 for (let i = 0; i < cells.length; i++) {
-                    let randomCandy = currentCandies[Math.floor(Math.random() * currentCandies.length)];
+                    let randomCandy;
+                    do {
+                        randomCandy = numberCandies[Math.floor(Math.random() * numberCandies.length)];
+                    } while (
+                        (i % width >= 2 && cells[i-1].textContent === randomCandy.name && cells[i-2].textContent === randomCandy.name) ||
+                        (i >= width * 2 && cells[i-width].textContent === randomCandy.name && cells[i-2*width].textContent === randomCandy.name)
+                    );
                     updateCell(cells[i], randomCandy);
-                }
-            }
-
-            function removeInitialMatches() {
-                let matches = getMatches();
-                while (matches.size > 0) {
-                    matches.forEach(index => {
-                        let randomCandy = currentCandies[Math.floor(Math.random() * currentCandies.length)];
-                        updateCell(cells[index], randomCandy);
-                    });
-                    matches = getMatches();
                 }
             }
             
@@ -257,16 +219,20 @@
             function processMatches(matches) {
                 if (matches.size === 0) {
                     isProcessing = false;
-                    checkLevelCompletion();
+                    // Sau mỗi chuỗi combo, kiểm tra xem còn nước đi không
+                    if (!checkForPossibleMoves()) {
+                        endGame(false); // Thua vì hết nước đi
+                    }
                     return;
                 }
                 score += matches.size;
                 scoreDisplay.textContent = score;
                 matches.forEach(index => cells[index].classList.add('matched'));
+                
                 setTimeout(() => {
                     matches.forEach(index => updateCell(cells[index], null));
                     applyGravity();
-                    refillBoard();
+                    // THAY ĐỔI: Không gọi hàm lấp đầy ở đây nữa
                     setTimeout(() => processMatches(getMatches()), 400);
                 }, 400);
             }
@@ -288,15 +254,6 @@
                 }
             }
             
-            function refillBoard() {
-                 cells.forEach(cell => {
-                    if (cell.classList.contains('empty')) {
-                        let randomCandy = currentCandies[Math.floor(Math.random() * currentCandies.length)];
-                        updateCell(cell, randomCandy);
-                    }
-                });
-            }
-
             function getMatches() {
                 const matchedIndices = new Set();
                 for (let r = 0; r < width; r++) {
@@ -320,29 +277,63 @@
                 return matchedIndices;
             }
 
-            function checkLevelCompletion() {
-                if (score >= currentTargetScore && !isProcessing) {
-                    isProcessing = true;
-                    const nextLevel = currentLevel + 1;
-                    if (levelConfig[nextLevel - 1]) {
-                        messageContent.innerHTML = `<h2>Vòng ${currentLevel} Hoàn Tất!</h2><p>Chuẩn bị cho Vòng ${nextLevel}</p>`;
-                        messageOverlay.style.display = 'flex';
-                        setTimeout(() => {
-                            messageOverlay.style.display = 'none';
-                            setupLevel(nextLevel);
-                        }, 3000);
-                    } else {
-                        messageContent.innerHTML = `<h2>You Win!</h2>`;
-                        messageOverlay.style.display = 'flex';
-                        launchFireworks();
+            // HÀM MỚI: Kiểm tra xem còn nước đi hợp lệ không
+            function checkForPossibleMoves() {
+                for (let i = 0; i < cells.length; i++) {
+                    const tempCells = cells.map(cell => cell.textContent);
+                    const adjacent = [i + 1, i + width]; // Chỉ cần check bên phải và bên dưới
+                    for (const adj of adjacent) {
+                        if (adj < cells.length) {
+                            // Thử hoán đổi
+                            [tempCells[i], tempCells[adj]] = [tempCells[adj], tempCells[i]];
+                            // Kiểm tra có khớp không
+                            if (hasMatchInTemp(tempCells)) {
+                                return true; // Tìm thấy ít nhất 1 nước đi -> true
+                            }
+                            // Hoán đổi lại để thử nghiệm tiếp
+                            [tempCells[i], tempCells[adj]] = [tempCells[adj], tempCells[i]];
+                        }
                     }
                 }
+                return false; // Không tìm thấy nước đi nào
             }
+
+            function hasMatchInTemp(tempBoard) {
+                for (let r = 0; r < width; r++) {
+                    for (let c = 0; c < width; c++) {
+                        const current = tempBoard[r*width+c];
+                        if (!current) continue;
+                        if (c < width - 2 && tempBoard[r*width+c+1] === current && tempBoard[r*width+c+2] === current) return true;
+                        if (r < width - 2 && tempBoard[(r+1)*width+c] === current && tempBoard[(r+2)*width+c] === current) return true;
+                    }
+                }
+                return false;
+            }
+
+            function endGame(isWin) {
+                isProcessing = true;
+                if(isWin) {
+                    messageContent.innerHTML = `<h2>You Win!</h2>`;
+                    messageOverlay.style.display = 'flex';
+                    launchFireworks();
+                } else {
+                    messageContent.innerHTML = `<h2>Game Over</h2><p>Hết nước đi!</p>`;
+                    messageOverlay.style.display = 'flex';
+                }
+            }
+            
+            // Hàm checkForWin cũ được gộp vào endGame
+            setInterval(() => {
+                if (score >= TARGET_SCORE && !isProcessing) {
+                    endGame(true);
+                }
+            }, 1000);
+
 
             function launchFireworks() {
                 var duration = 5 * 1000;
                 var animationEnd = Date.now() + duration;
-                var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 1000 };
+                var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 1001 };
                 function randomInRange(min, max) { return Math.random() * (max - min) + min; }
                 var interval = setInterval(function() {
                     var timeLeft = animationEnd - Date.now();
@@ -353,7 +344,7 @@
                 }, 250);
             }
             
-            setupLevel(1);
+            init();
         });
     </script>
 </body>
