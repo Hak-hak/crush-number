@@ -153,21 +153,17 @@
             function setupLevel(level) {
                 const config = levelConfig[level - 1];
                 if (!config) return;
-
                 currentLevel = config.level;
                 currentTargetScore = config.targetScore;
                 score = 0;
                 currentCandies = config.candies.map(name => masterCandyList[name]);
-                
                 levelDisplay.textContent = `Vòng ${currentLevel}`;
                 scoreDisplay.textContent = score;
                 targetScoreDisplay.textContent = currentTargetScore;
-
                 gameBoard.innerHTML = '';
                 cells.length = 0;
                 isProcessing = false;
                 firstCellClicked = null;
-                
                 createBoard();
             }
 
@@ -178,20 +174,27 @@
                     gameBoard.appendChild(cell);
                     cells.push(cell);
                 }
-                fillBoardWithValidCandies();
+                fillBoardRandomly();
+                removeInitialMatches();
                 cells.forEach(cell => cell.addEventListener('pointerdown', handleCellClick));
             }
 
-            function fillBoardWithValidCandies() {
+            // THAY ĐỔI: Tách hàm lấp đầy và xóa các hàng trùng ban đầu
+            function fillBoardRandomly() {
                 for (let i = 0; i < cells.length; i++) {
-                    let randomCandy;
-                    do {
-                        randomCandy = currentCandies[Math.floor(Math.random() * currentCandies.length)];
-                    } while (
-                        (i % width >= 2 && cells[i-1].textContent === randomCandy.name && cells[i-2].textContent === randomCandy.name) ||
-                        (i >= width * 2 && cells[i-width].textContent === randomCandy.name && cells[i-2*width].textContent === randomCandy.name)
-                    );
+                    let randomCandy = currentCandies[Math.floor(Math.random() * currentCandies.length)];
                     updateCell(cells[i], randomCandy);
+                }
+            }
+
+            function removeInitialMatches() {
+                let matches = getMatches();
+                while (matches.size > 0) {
+                    matches.forEach(index => {
+                        let randomCandy = currentCandies[Math.floor(Math.random() * currentCandies.length)];
+                        updateCell(cells[index], randomCandy);
+                    });
+                    matches = getMatches();
                 }
             }
             
@@ -211,23 +214,18 @@
             
             function handleCellClick() {
                 if (isProcessing) return;
-                
                 const clickedCell = this;
-
                 if (!firstCellClicked) {
                     firstCellClicked = clickedCell;
                     firstCellClicked.classList.add('selected');
                     return;
                 }
-
                 const secondCellClicked = clickedCell;
                 firstCellClicked.classList.remove('selected');
-                
                 if (firstCellClicked === secondCellClicked) {
                     firstCellClicked = null;
                     return;
                 }
-                
                 const id1 = parseInt(firstCellClicked.dataset.id);
                 const id2 = parseInt(secondCellClicked.dataset.id);
                 const isAdjacent = Math.abs(id1 - id2) === 1 || Math.abs(id1 - id2) === width;
@@ -236,7 +234,6 @@
                 if (isAdjacent && !isEdgeWrap) {
                     isProcessing = true;
                     swapContent(firstCellClicked, secondCellClicked);
-                    
                     const matchesAfterSwap = getMatches();
                     if (matchesAfterSwap.size > 0) {
                         processMatches(matchesAfterSwap);
@@ -247,7 +244,6 @@
                         }, 200);
                     }
                 }
-                
                 firstCellClicked = null;
             }
             
@@ -264,45 +260,30 @@
                     checkLevelCompletion();
                     return;
                 }
-                
                 score += matches.size;
                 scoreDisplay.textContent = score;
-                
                 matches.forEach(index => cells[index].classList.add('matched'));
-                
                 setTimeout(() => {
-                    matches.forEach(index => {
-                        updateCell(cells[index], null);
-                        cells[index].classList.remove('matched');
-                    });
-                    
+                    matches.forEach(index => updateCell(cells[index], null));
                     applyGravity();
                     refillBoard();
-
                     setTimeout(() => processMatches(getMatches()), 400);
-
                 }, 400);
             }
             
             function applyGravity() {
                 for (let c = 0; c < width; c++) {
                     const columnData = [];
-                    // Đọc cột từ trên xuống
                     for (let r = 0; r < width; r++) {
                         const cell = cells[r * width + c];
                         if (!cell.classList.contains('empty')) {
                             columnData.push({ name: cell.textContent, color: cell.style.backgroundColor });
                         }
                     }
-                    // Ghi lại cột, dồn xuống dưới
                     for (let r = width - 1; r >= 0; r--) {
                         const cell = cells[r * width + c];
-                        const data = columnData.pop(); // Lấy từ cuối -> dồn xuống
-                        if (data) {
-                            updateCell(cell, data);
-                        } else {
-                            updateCell(cell, null);
-                        }
+                        const data = columnData.pop();
+                        updateCell(cell, data);
                     }
                 }
             }
@@ -322,15 +303,12 @@
                     for (let c = 0; c < width; c++) {
                         const cell1 = cells[r*width+c];
                         if (cell1.classList.contains('empty')) continue;
-                        
-                        // Check row
                         if (c < width - 2) {
                             const indices = [r*width+c, r*width+c+1, r*width+c+2];
                             if (cell1.textContent === cells[indices[1]].textContent && cell1.textContent === cells[indices[2]].textContent) {
                                 indices.forEach(i => matchedIndices.add(i));
                             }
                         }
-                        // Check column
                         if (r < width - 2) {
                             const indices = [r*width+c, (r+1)*width+c, (r+2)*width+c];
                              if (cell1.textContent === cells[indices[1]].textContent && cell1.textContent === cells[indices[2]].textContent) {
@@ -364,7 +342,7 @@
             function launchFireworks() {
                 var duration = 5 * 1000;
                 var animationEnd = Date.now() + duration;
-                var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 1001 };
+                var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 1000 };
                 function randomInRange(min, max) { return Math.random() * (max - min) + min; }
                 var interval = setInterval(function() {
                     var timeLeft = animationEnd - Date.now();
