@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Number Crush Puzzle</title>
+    <title>Number Crush</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
     <style>
         body {
@@ -12,10 +12,11 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background-color: #6a89cc; /* Màu nền mới */
+            background-color: #f7f1e3;
             margin: 0;
-            padding: 10px;
+            padding: 15px;
             box-sizing: border-box;
+            /* Chống cuộn trang và các hành vi cảm ứng mặc định của trình duyệt */
             touch-action: none;
         }
 
@@ -23,50 +24,54 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: clamp(10px, 3vw, 25px);
+            padding: 20px;
             background-color: #ffffff;
             border-radius: 20px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border: 5px solid #ffb142;
         }
         
         h1 {
-            color: #4a69bd;
+            color: #ff793f;
             margin-bottom: 5px;
-            font-size: clamp(2rem, 6vw, 2.5rem);
+            text-shadow: 2px 2px #ffb142;
         }
         
+        #level-display {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #005a9c;
+            margin-bottom: 10px;
+        }
+
         .score-board {
-            font-size: clamp(1.2rem, 5vw, 1.5rem);
+            font-size: 24px;
             font-weight: bold;
             color: #333;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
 
         #game-board {
             display: grid;
-            grid-template-columns: repeat(8, 1fr);
-            grid-template-rows: repeat(8, 1fr);
+            grid-template-columns: repeat(8, 55px);
+            grid-template-rows: repeat(8, 55px);
             gap: 5px;
-            background-color: #a4b0be;
+            background-color: #ffb142;
             padding: 10px;
             border-radius: 12px;
-            width: 90vw; 
-            height: 90vw;
-            max-width: 450px;
-            max-height: 450px;
         }
 
         #game-board div {
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: clamp(10px, 2.5vw, 16px); 
+            font-size: 14px;
             font-weight: bold;
             color: white;
-            border-radius: 8px; /* Hình vuông bo tròn */
+            border-radius: 50%;
             cursor: pointer;
             user-select: none;
-            transition: transform 0.2s ease-in-out;
+            transition: transform 0.2s ease-in-out, background-color 0.2s;
             box-shadow: inset 0 -4px 0 rgba(0,0,0,0.2);
             text-transform: capitalize;
         }
@@ -76,15 +81,20 @@
             box-shadow: none;
         }
 
+        /* Thêm style cho ô được chọn */
         #game-board div.selected {
-            transform: scale(1.1);
+            transform: scale(1.15);
             box-shadow: 0 0 10px 3px #f1c40f;
             z-index: 10;
         }
 
         .matched {
-            transform: scale(0);
-            transition: transform 0.3s ease-in-out;
+            animation: shrink 0.4s forwards ease-in-out;
+        }
+
+        @keyframes shrink {
+            from { transform: scale(1.1); }
+            to { transform: scale(0); opacity: 0; }
         }
 
         #message-overlay { 
@@ -96,14 +106,14 @@
             animation: win-popup 0.5s ease;
         }
         #message-overlay h2 { font-size: 2rem; color: #28a745; margin: 0; }
-        #message-overlay p { font-size: 1rem; color: #6c757d; }
         @keyframes win-popup { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     </style>
 </head>
 <body>
     <div class="game-container">
-        <h1>Number Puzzle</h1>
-        <div class="score-board">Điểm: <span id="score">0</span> / <span id="target-score">150</span></div>
+        <h1>Number Crush</h1>
+        <div id="level-display"></div>
+        <div class="score-board">Điểm: <span id="score">0</span> / <span id="target-score">100</span></div>
         <div id="game-board"></div>
     </div>
     <div id="message-overlay">
@@ -115,35 +125,63 @@
             const gameBoard = document.getElementById('game-board');
             const scoreDisplay = document.getElementById('score');
             const targetScoreDisplay = document.getElementById('target-score');
+            const levelDisplay = document.getElementById('level-display');
             const messageOverlay = document.getElementById('message-overlay');
             const messageContent = document.getElementById('message-content');
 
             const width = 8;
-            const TARGET_SCORE = 150;
             const cells = [];
             let score = 0;
             let isProcessing = false;
             
-            const numberCandies = [
-                { name: 'one',   color: '#e74c3c' }, { name: 'two',   color: '#3498db' },
-                { name: 'three', color: '#2ecc71' }, { name: 'four',  color: '#9b59b6' },
-                { name: 'five',  color: '#f1c40f' }, { name: 'six',   color: '#1abc9c' }
+            let currentLevel = 1;
+            const masterCandyList = {
+                'one':   { name: 'one',   color: '#e74c3c' }, 'two':   { name: 'two',   color: '#3498db' },
+                'three': { name: 'three', color: '#2ecc71' }, 'four':  { name: 'four',  color: '#9b59b6' },
+                'five':  { name: 'five',  color: '#f1c40f' }, 'six':   { name: 'six',   color: '#1abc9c' },
+                'seven': { name: 'seven', color: '#e67e22' }, 'eight': { name: 'eight', color: '#34495e' },
+                'nine':  { name: 'nine',  color: '#7f8c8d' }, 'ten':   { name: 'ten',   color: '#d35400' }
+            };
+            const levelConfig = [
+                { level: 1, targetScore: 100, candies: ['one', 'two', 'three', 'four', 'five', 'six'] },
+                { level: 2, targetScore: 250, candies: ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'] }
             ];
+            let currentCandies = [];
+            let currentTargetScore = 0;
             
+            // Thay thế các biến kéo-thả bằng biến cho ô được chọn
             let firstCellClicked = null;
 
-            function init() {
-                targetScoreDisplay.textContent = TARGET_SCORE;
-                scoreDisplay.textContent = score;
+            function setupLevel(level) {
+                const config = levelConfig[level - 1];
+                if (!config) return;
 
+                currentLevel = config.level;
+                currentTargetScore = config.targetScore;
+                score = 0;
+                currentCandies = config.candies.map(name => masterCandyList[name]);
+                
+                levelDisplay.textContent = `Vòng ${currentLevel}`;
+                scoreDisplay.textContent = score;
+                targetScoreDisplay.textContent = currentTargetScore;
+
+                gameBoard.innerHTML = '';
+                cells.length = 0;
+                isProcessing = false;
+                firstCellClicked = null;
+                
+                createBoard();
+            }
+
+            function createBoard() {
                 for (let i = 0; i < width * width; i++) {
                     const cell = document.createElement('div');
                     cell.dataset.id = i;
                     gameBoard.appendChild(cell);
                     cells.push(cell);
                 }
-                
                 fillBoardWithValidCandies();
+                // THAY ĐỔI: Sử dụng sự kiện 'pointerdown' (hoạt động cho cả chuột và chạm)
                 cells.forEach(cell => cell.addEventListener('pointerdown', handleCellClick));
             }
 
@@ -151,7 +189,7 @@
                 for (let i = 0; i < cells.length; i++) {
                     let randomCandy;
                     do {
-                        randomCandy = numberCandies[Math.floor(Math.random() * numberCandies.length)];
+                        randomCandy = currentCandies[Math.floor(Math.random() * currentCandies.length)];
                     } while (
                         (i % width >= 2 && cells[i-1].textContent === randomCandy.name && cells[i-2].textContent === randomCandy.name) ||
                         (i >= width * 2 && cells[i-width].textContent === randomCandy.name && cells[i-2*width].textContent === randomCandy.name)
@@ -165,29 +203,35 @@
                     cell.textContent = '';
                     cell.style.backgroundColor = 'transparent';
                     cell.style.boxShadow = 'none';
-                    cell.classList.add('empty');
                 } else {
                     cell.textContent = candyData.name;
                     cell.style.backgroundColor = candyData.color;
                     cell.style.boxShadow = 'inset 0 -4px 0 rgba(0,0,0,0.2)';
-                    cell.classList.remove('empty');
                 }
             }
             
+            // THAY ĐỔI: Logic hoàn toàn mới để xử lý chạm/click
             function handleCellClick() {
                 if (isProcessing) return;
+                
                 const clickedCell = this;
+
                 if (!firstCellClicked) {
+                    // Lần chạm đầu tiên: chọn ô
                     firstCellClicked = clickedCell;
                     firstCellClicked.classList.add('selected');
                     return;
                 }
+
+                // Lần chạm thứ hai:
                 const secondCellClicked = clickedCell;
                 firstCellClicked.classList.remove('selected');
+
                 if (firstCellClicked === secondCellClicked) {
                     firstCellClicked = null;
                     return;
                 }
+                
                 const id1 = parseInt(firstCellClicked.dataset.id);
                 const id2 = parseInt(secondCellClicked.dataset.id);
                 const isAdjacent = Math.abs(id1 - id2) === 1 || Math.abs(id1 - id2) === width;
@@ -196,9 +240,11 @@
                 if (isAdjacent && !isEdgeWrap) {
                     isProcessing = true;
                     swapContent(firstCellClicked, secondCellClicked);
-                    const matchesAfterSwap = getMatches();
-                    if (matchesAfterSwap.size > 0) {
-                        processMatches(matchesAfterSwap);
+                    
+                    const isMatchFound = getMatches().size > 0;
+                    
+                    if (isMatchFound) {
+                        processMatches(getMatches());
                     } else {
                         setTimeout(() => {
                             swapContent(firstCellClicked, secondCellClicked);
@@ -206,6 +252,7 @@
                         }, 200);
                     }
                 }
+                
                 firstCellClicked = null;
             }
             
@@ -216,59 +263,64 @@
                 updateCell(cell2, data1);
             }
 
-            function processMatches(matches) {
-                if (matches.size === 0) {
+            function processMatches(initialMatches) {
+                if (!initialMatches || initialMatches.size === 0) {
                     isProcessing = false;
-                    // Sau mỗi chuỗi combo, kiểm tra xem còn nước đi không
-                    if (!checkForPossibleMoves()) {
-                        endGame(false); // Thua vì hết nước đi
-                    }
+                    checkLevelCompletion();
                     return;
                 }
-                score += matches.size;
+                
+                score += initialMatches.size;
                 scoreDisplay.textContent = score;
-                matches.forEach(index => cells[index].classList.add('matched'));
+                
+                initialMatches.forEach(index => cells[index].classList.add('matched'));
                 
                 setTimeout(() => {
-                    matches.forEach(index => updateCell(cells[index], null));
-                    applyGravity();
-                    // THAY ĐỔI: Không gọi hàm lấp đầy ở đây nữa
-                    setTimeout(() => processMatches(getMatches()), 400);
+                    initialMatches.forEach(index => updateCell(cells[index], null));
+                    applyGravityAndRefill().then(() => {
+                        setTimeout(() => processMatches(getMatches()), 200);
+                    });
                 }, 400);
             }
             
-            function applyGravity() {
+            async function applyGravityAndRefill() {
                 for (let c = 0; c < width; c++) {
                     const columnData = [];
-                    for (let r = 0; r < width; r++) {
+                    for (let r = width - 1; r >= 0; r--) {
                         const cell = cells[r * width + c];
-                        if (!cell.classList.contains('empty')) {
+                        if (cell.textContent !== '') {
                             columnData.push({ name: cell.textContent, color: cell.style.backgroundColor });
                         }
                     }
                     for (let r = width - 1; r >= 0; r--) {
                         const cell = cells[r * width + c];
-                        const data = columnData.pop();
+                        const data = columnData.shift();
                         updateCell(cell, data);
                     }
                 }
+                cells.forEach(cell => {
+                    if (cell.textContent === '') {
+                        let randomCandy = currentCandies[Math.floor(Math.random() * currentCandies.length)];
+                        updateCell(cell, randomCandy);
+                    }
+                });
             }
-            
+
             function getMatches() {
                 const matchedIndices = new Set();
                 for (let r = 0; r < width; r++) {
                     for (let c = 0; c < width; c++) {
-                        const cell1 = cells[r*width+c];
-                        if (cell1.classList.contains('empty')) continue;
                         if (c < width - 2) {
                             const indices = [r*width+c, r*width+c+1, r*width+c+2];
-                            if (cell1.textContent === cells[indices[1]].textContent && cell1.textContent === cells[indices[2]].textContent) {
+                            const cell1 = cells[indices[0]];
+                            if (cell1.textContent && cell1.textContent === cells[indices[1]].textContent && cell1.textContent === cells[indices[2]].textContent) {
                                 indices.forEach(i => matchedIndices.add(i));
                             }
                         }
                         if (r < width - 2) {
                             const indices = [r*width+c, (r+1)*width+c, (r+2)*width+c];
-                             if (cell1.textContent === cells[indices[1]].textContent && cell1.textContent === cells[indices[2]].textContent) {
+                            const cell1 = cells[indices[0]];
+                             if (cell1.textContent && cell1.textContent === cells[indices[1]].textContent && cell1.textContent === cells[indices[2]].textContent) {
                                 indices.forEach(i => matchedIndices.add(i));
                             }
                         }
@@ -277,58 +329,24 @@
                 return matchedIndices;
             }
 
-            // HÀM MỚI: Kiểm tra xem còn nước đi hợp lệ không
-            function checkForPossibleMoves() {
-                for (let i = 0; i < cells.length; i++) {
-                    const tempCells = cells.map(cell => cell.textContent);
-                    const adjacent = [i + 1, i + width]; // Chỉ cần check bên phải và bên dưới
-                    for (const adj of adjacent) {
-                        if (adj < cells.length) {
-                            // Thử hoán đổi
-                            [tempCells[i], tempCells[adj]] = [tempCells[adj], tempCells[i]];
-                            // Kiểm tra có khớp không
-                            if (hasMatchInTemp(tempCells)) {
-                                return true; // Tìm thấy ít nhất 1 nước đi -> true
-                            }
-                            // Hoán đổi lại để thử nghiệm tiếp
-                            [tempCells[i], tempCells[adj]] = [tempCells[adj], tempCells[i]];
-                        }
+            function checkLevelCompletion() {
+                if (score >= currentTargetScore && !isProcessing) {
+                    isProcessing = true;
+                    const nextLevel = currentLevel + 1;
+                    if (levelConfig[nextLevel - 1]) {
+                        messageContent.innerHTML = `<h2>Vòng ${currentLevel} Hoàn Tất!</h2><p>Chuẩn bị cho Vòng ${nextLevel}</p>`;
+                        messageOverlay.style.display = 'flex';
+                        setTimeout(() => {
+                            messageOverlay.style.display = 'none';
+                            setupLevel(nextLevel);
+                        }, 3000);
+                    } else {
+                        messageContent.innerHTML = `<h2>You Win!</h2>`;
+                        messageOverlay.style.display = 'flex';
+                        launchFireworks();
                     }
                 }
-                return false; // Không tìm thấy nước đi nào
             }
-
-            function hasMatchInTemp(tempBoard) {
-                for (let r = 0; r < width; r++) {
-                    for (let c = 0; c < width; c++) {
-                        const current = tempBoard[r*width+c];
-                        if (!current) continue;
-                        if (c < width - 2 && tempBoard[r*width+c+1] === current && tempBoard[r*width+c+2] === current) return true;
-                        if (r < width - 2 && tempBoard[(r+1)*width+c] === current && tempBoard[(r+2)*width+c] === current) return true;
-                    }
-                }
-                return false;
-            }
-
-            function endGame(isWin) {
-                isProcessing = true;
-                if(isWin) {
-                    messageContent.innerHTML = `<h2>You Win!</h2>`;
-                    messageOverlay.style.display = 'flex';
-                    launchFireworks();
-                } else {
-                    messageContent.innerHTML = `<h2>Game Over</h2><p>Hết nước đi!</p>`;
-                    messageOverlay.style.display = 'flex';
-                }
-            }
-            
-            // Hàm checkForWin cũ được gộp vào endGame
-            setInterval(() => {
-                if (score >= TARGET_SCORE && !isProcessing) {
-                    endGame(true);
-                }
-            }, 1000);
-
 
             function launchFireworks() {
                 var duration = 5 * 1000;
@@ -344,7 +362,7 @@
                 }, 250);
             }
             
-            init();
+            setupLevel(1);
         });
     </script>
 </body>
