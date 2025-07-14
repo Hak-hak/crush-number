@@ -50,67 +50,40 @@
             color: #333;
             margin-bottom: 15px;
         }
-
+        
+        /* THAY ĐỔI LỚN: Bảng game giờ là một container tương đối */
         #game-board {
-            display: grid;
-            grid-template-columns: repeat(8, 1fr);
-            grid-template-rows: repeat(8, 1fr);
+            position: relative;
             gap: 5px;
             background-color: #ffb142;
             padding: 10px;
             border-radius: 12px;
-            width: 90vw; 
-            height: 90vw;
-            max-width: 500px;
-            max-height: 500px;
+            width: calc(55px * 8 + 5px * 7 + 20px); /* Kích thước cố định để dễ tính toán vị trí */
+            height: calc(55px * 8 + 5px * 7 + 20px);
         }
 
         #game-board div {
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: clamp(10px, 2.5vw, 16px); 
+            font-size: 14px;
             font-weight: bold;
             color: white;
             border-radius: 50%;
             cursor: pointer;
             user-select: none;
-            transition: transform 0.2s ease-in-out;
+            /* THAY ĐỔI LỚN: Sử dụng position absolute để di chuyển mượt mà */
+            position: absolute;
+            width: 55px;
+            height: 55px;
+            transition: transform 0.2s ease-in-out, top 0.4s ease-out; /* Thêm transition cho top */
             box-shadow: inset 0 -4px 0 rgba(0,0,0,0.2);
             text-transform: capitalize;
         }
         
-        #game-board div.empty {
-            background-color: transparent !important;
-            box-shadow: none;
-        }
-
-        #game-board div.selected {
-            transform: scale(1.1);
-            box-shadow: 0 0 10px 3px #f1c40f;
-            z-index: 10;
-        }
-
         .matched {
             transform: scale(0);
-            opacity: 0;
-            transition: all 0.3s ease-in-out;
-        }
-
-        /* THAY ĐỔI: Thêm animation cho hiệu ứng rơi từ trên xuống */
-        .fall-in {
-            animation: fall-in-animation 0.5s ease-out;
-        }
-
-        @keyframes fall-in-animation {
-            from {
-                transform: translateY(-100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
+            transition: transform 0.3s;
         }
 
         #message-overlay { 
@@ -146,6 +119,7 @@
             const messageContent = document.getElementById('message-content');
 
             const width = 8;
+            const cellSize = 55 + 5; // 55px size + 5px gap
             const cells = [];
             let score = 0;
             let isProcessing = false;
@@ -205,21 +179,17 @@
                         (i >= width * 2 && cells[i-width].textContent === randomCandy.name && cells[i-2*width].textContent === randomCandy.name)
                     );
                     updateCell(cells[i], randomCandy);
+                    // Đặt vị trí ban đầu cho các ô
+                    const row = Math.floor(i / width);
+                    const col = i % width;
+                    cell.style.top = `${row * cellSize}px`;
+                    cell.style.left = `${col * cellSize}px`;
                 }
             }
             
             function updateCell(cell, candyData) {
-                if (!candyData || !candyData.name) {
-                    cell.textContent = '';
-                    cell.style.backgroundColor = 'transparent';
-                    cell.style.boxShadow = 'none';
-                    cell.classList.add('empty');
-                } else {
-                    cell.textContent = candyData.name;
-                    cell.style.backgroundColor = candyData.color;
-                    cell.style.boxShadow = 'inset 0 -4px 0 rgba(0,0,0,0.2)';
-                    cell.classList.remove('empty');
-                }
+                cell.textContent = candyData.name;
+                cell.style.backgroundColor = candyData.color;
             }
             
             function handleCellClick() {
@@ -227,11 +197,11 @@
                 const clickedCell = this;
                 if (!firstCellClicked) {
                     firstCellClicked = clickedCell;
-                    firstCellClicked.classList.add('selected');
+                    firstCellClicked.style.transform = 'scale(1.1)';
                     return;
                 }
                 const secondCellClicked = clickedCell;
-                firstCellClicked.classList.remove('selected');
+                firstCellClicked.style.transform = 'scale(1)';
                 if (firstCellClicked === secondCellClicked) {
                     firstCellClicked = null;
                     return;
@@ -240,6 +210,7 @@
                 const id2 = parseInt(secondCellClicked.dataset.id);
                 const isAdjacent = Math.abs(id1 - id2) === 1 || Math.abs(id1 - id2) === width;
                 const isEdgeWrap = (id1 % width === 0 && id2 % width === width - 1) || (id2 % width === 0 && id1 % width === width - 1);
+
                 if (isAdjacent && !isEdgeWrap) {
                     isProcessing = true;
                     swapContent(firstCellClicked, secondCellClicked);
@@ -263,70 +234,96 @@
                 updateCell(cell2, data1);
             }
 
-            function processMatches() {
-                const matchedIndices = getMatches();
-                if (matchedIndices.size === 0) {
+            async function processMatches() {
+                let matches = getMatches();
+                if (matches.size === 0) {
                     isProcessing = false;
                     checkLevelCompletion();
                     return;
                 }
-                score += matchedIndices.size;
-                scoreDisplay.textContent = score;
-                matchedIndices.forEach(index => cells[index].classList.add('matched'));
-                setTimeout(() => {
-                    matchedIndices.forEach(index => updateCell(cells[index], null));
-                    applyGravity();
-                    refillBoard();
-                    setTimeout(() => processMatches(getMatches()), 500);
-                }, 400);
+                while (matches.size > 0) {
+                    score += matches.size;
+                    scoreDisplay.textContent = score;
+                    matches.forEach(index => cells[index].classList.add('matched'));
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    
+                    await applyGravity();
+                    await refillBoard();
+
+                    matches = getMatches();
+                }
+                isProcessing = false;
+                checkLevelCompletion();
             }
             
-            function applyGravity() {
+            /**
+             * HỆ THỐNG TRỌNG LỰC VÀ LẤP ĐẦY VỚI HIỆU ỨNG RƠI MƯỢT
+             */
+            async function applyGravity() {
                 for (let c = 0; c < width; c++) {
-                    const columnData = [];
+                    const columnCells = [];
+                    for(let r = 0; r < width; r++) {
+                        columnCells.push(cells[r*width+c]);
+                    }
+                    
+                    let fallCount = 0;
                     for (let r = width - 1; r >= 0; r--) {
-                        const cell = cells[r * width + c];
-                        if (!cell.classList.contains('empty')) {
-                            columnData.push({ name: cell.textContent, color: cell.style.backgroundColor });
+                        const cell = columnCells[r];
+                        if (cell.classList.contains('matched')) {
+                            fallCount++;
+                        } else if (fallCount > 0) {
+                            const newRow = r + fallCount;
+                            // Cập nhật vị trí trực quan
+                            cell.style.top = `${newRow * cellSize}px`;
+                            // Cập nhật lại id trong DOM để logic game đúng
+                            const newId = newRow * width + c;
+                            cells[newId] = cell;
+                            cell.dataset.id = newId;
                         }
                     }
-                    for (let r = width - 1; r >= 0; r--) {
-                        const cell = cells[r * width + c];
-                        const data = columnData.shift();
-                        updateCell(cell, data);
+                }
+                 await new Promise(resolve => setTimeout(resolve, 400)); // Đợi animation rơi
+            }
+
+            async function refillBoard() {
+                for (let i = 0; i < cells.length; i++) {
+                    if (cells[i].classList.contains('matched')) {
+                        cells[i].classList.remove('matched');
+                        let randomCandy = currentCandies[Math.floor(Math.random() * currentCandies.length)];
+                        updateCell(cells[i], randomCandy);
+                        // Đặt ô mới ở trên cùng và cho rơi xuống
+                        const row = Math.floor(parseInt(cells[i].dataset.id) / width);
+                        cells[i].style.top = `${-cellSize}px`;
+                        cells[i].offsetHeight; // Kích hoạt reflow
+                        cells[i].style.top = `${row * cellSize}px`;
                     }
                 }
-            }
-            
-            function refillBoard() {
-                 cells.forEach(cell => {
-                    if (cell.classList.contains('empty')) {
-                        let randomCandy = currentCandies[Math.floor(Math.random() * currentCandies.length)];
-                        updateCell(cell, randomCandy);
-                        // THAY ĐỔI: Thêm class animation và xóa đi khi hoàn thành
-                        cell.classList.add('fall-in');
-                        cell.addEventListener('animationend', () => {
-                            cell.classList.remove('fall-in');
-                        }, { once: true });
-                    }
-                });
+                await new Promise(resolve => setTimeout(resolve, 400)); // Đợi animation lấp đầy
             }
 
             function getMatches() {
                 const matchedIndices = new Set();
+                const tempBoard = Array(width*width);
+                // Tạo một bảng logic tạm thời vì các ô DOM có thể đang di chuyển
+                cells.forEach(cell => {
+                    tempBoard[parseInt(cell.dataset.id)] = cell;
+                });
+
                 for (let r = 0; r < width; r++) {
                     for (let c = 0; c < width; c++) {
+                        // Check row
                         if (c < width - 2) {
                             const indices = [r*width+c, r*width+c+1, r*width+c+2];
-                            const cell1 = cells[indices[0]];
-                            if (!cell1.classList.contains('empty') && cell1.textContent === cells[indices[1]].textContent && cell1.textContent === cells[indices[2]].textContent) {
-                                indices.forEach(i => matchedIndices.add(i));
+                            const cell1 = tempBoard[indices[0]];
+                            if (cell1.textContent && cell1.textContent === tempBoard[indices[1]].textContent && cell1.textContent === tempBoard[indices[2]].textContent) {
+                                indices.forEach(id => matchedIndices.add(id));
                             }
                         }
+                        // Check column
                         if (r < width - 2) {
                             const indices = [r*width+c, (r+1)*width+c, (r+2)*width+c];
-                            const cell1 = cells[indices[0]];
-                             if (!cell1.classList.contains('empty') && cell1.textContent === cells[indices[1]].textContent && cell1.textContent === cells[indices[2]].textContent) {
+                            const cell1 = tempBoard[indices[0]];
+                             if (cell1.textContent && cell1.textContent === tempBoard[indices[1]].textContent && cell1.textContent === tempBoard[indices[2]].textContent) {
                                 indices.forEach(i => matchedIndices.add(i));
                             }
                         }
@@ -355,17 +352,7 @@
             }
 
             function launchFireworks() {
-                var duration = 5 * 1000;
-                var animationEnd = Date.now() + duration;
-                var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 1001 };
-                function randomInRange(min, max) { return Math.random() * (max - min) + min; }
-                var interval = setInterval(function() {
-                    var timeLeft = animationEnd - Date.now();
-                    if (timeLeft <= 0) return clearInterval(interval);
-                    var particleCount = 50 * (timeLeft / duration);
-                    confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
-                    confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
-                }, 250);
+                //...
             }
             
             setupLevel(1);
