@@ -16,7 +16,7 @@
             margin: 0;
             padding: 15px;
             box-sizing: border-box;
-            /* Chống cuộn trang trên di động */
+            /* Chống cuộn trang và các hành vi cảm ứng mặc định của trình duyệt */
             touch-action: none;
         }
 
@@ -81,7 +81,6 @@
             box-shadow: none;
         }
 
-        /* Thêm style cho ô được chọn */
         #game-board div.selected {
             transform: scale(1.1);
             box-shadow: 0 0 10px 3px #f1c40f;
@@ -149,7 +148,6 @@
             let currentCandies = [];
             let currentTargetScore = 0;
             
-            // THAY ĐỔI: Không cần biến kéo thả nữa, dùng biến cho ô được chọn
             let firstCellClicked = null;
 
             function setupLevel(level) {
@@ -168,6 +166,7 @@
                 gameBoard.innerHTML = '';
                 cells.length = 0;
                 isProcessing = false;
+                firstCellClicked = null;
                 
                 createBoard();
             }
@@ -180,8 +179,8 @@
                     cells.push(cell);
                 }
                 fillBoardWithValidCandies();
-                // Gán sự kiện click cho tất cả các ô
-                cells.forEach(cell => cell.addEventListener('click', handleCellClick));
+                // THAY ĐỔI: Sử dụng sự kiện 'pointerdown' thay cho 'click'
+                cells.forEach(cell => cell.addEventListener('pointerdown', handleCellClick));
             }
 
             function fillBoardWithValidCandies() {
@@ -211,26 +210,22 @@
                 }
             }
             
-            /**
-             * THAY ĐỔI LỚN: Logic xử lý game bằng cách chạm/click
-             */
             function handleCellClick() {
                 if (isProcessing) return;
                 
                 const clickedCell = this;
 
                 if (!firstCellClicked) {
-                    // Lần chạm đầu tiên: chọn ô
                     firstCellClicked = clickedCell;
                     firstCellClicked.classList.add('selected');
                     return;
                 }
 
-                // Lần chạm thứ hai:
                 const secondCellClicked = clickedCell;
-                firstCellClicked.classList.remove('selected'); // Bỏ chọn ô đầu tiên
-
-                // Nếu chạm lại chính nó, hủy lựa chọn
+                
+                // Bỏ hiệu ứng 'selected' ngay lập tức
+                firstCellClicked.classList.remove('selected');
+                
                 if (firstCellClicked === secondCellClicked) {
                     firstCellClicked = null;
                     return;
@@ -250,7 +245,6 @@
                     if (isMatchFound) {
                         processMatches();
                     } else {
-                        // Nếu không khớp, hoán đổi lại vị trí cũ
                         setTimeout(() => {
                             swapContent(firstCellClicked, secondCellClicked);
                             isProcessing = false;
@@ -258,7 +252,7 @@
                     }
                 }
                 
-                firstCellClicked = null; // Reset lựa chọn sau mỗi lần thử
+                firstCellClicked = null;
             }
             
             function swapContent(cell1, cell2) {
@@ -287,14 +281,13 @@
                         cells[index].classList.remove('matched');
                     });
                     
-                    applyGravity().then(() => {
-                        refillBoard();
-                        setTimeout(() => processMatches(getMatches()), 300);
+                    applyGravityAndRefill().then(() => {
+                        setTimeout(() => processMatches(getMatches()), 200);
                     });
                 }, 400);
             }
             
-            async function applyGravity() {
+            async function applyGravityAndRefill() {
                 for (let c = 0; c < width; c++) {
                     const columnData = [];
                     for (let r = width - 1; r >= 0; r--) {
@@ -309,11 +302,8 @@
                         updateCell(cell, data);
                     }
                 }
-            }
-            
-            function refillBoard() {
-                 cells.forEach(cell => {
-                    if (cell.textContent === '') {
+                cells.forEach(cell => {
+                    if (cell.classList.contains('empty')) {
                         let randomCandy = currentCandies[Math.floor(Math.random() * currentCandies.length)];
                         updateCell(cell, randomCandy);
                     }
@@ -363,7 +353,17 @@
             }
 
             function launchFireworks() {
-                // ... (Không thay đổi)
+                 var duration = 5 * 1000;
+                var animationEnd = Date.now() + duration;
+                var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 1001 };
+                function randomInRange(min, max) { return Math.random() * (max - min) + min; }
+                var interval = setInterval(function() {
+                    var timeLeft = animationEnd - Date.now();
+                    if (timeLeft <= 0) return clearInterval(interval);
+                    var particleCount = 50 * (timeLeft / duration);
+                    confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+                    confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+                }, 250);
             }
             
             // Bắt đầu game với Vòng 1
