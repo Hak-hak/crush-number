@@ -31,8 +31,15 @@
         
         h1 {
             color: #ff793f;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
             text-shadow: 2px 2px #ffb142;
+        }
+        
+        #level-display {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #005a9c;
+            margin-bottom: 10px;
         }
 
         .score-board {
@@ -81,28 +88,27 @@
             to { transform: scale(0); opacity: 0; }
         }
 
-        #win-message { 
+        #message-overlay { 
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background-color: rgba(0, 0, 0, 0.7); justify-content: center; align-items: center; z-index: 1000;
         }
-        #win-message div { 
+        #message-overlay div { 
             padding: 40px 60px; background-color: white; border-radius: 20px; text-align: center; 
             animation: win-popup 0.5s ease;
         }
-        #win-message h2 { font-size: 3rem; color: #28a745; margin: 0; }
+        #message-overlay h2 { font-size: 2.5rem; color: #28a745; margin: 0; }
         @keyframes win-popup { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     </style>
 </head>
 <body>
     <div class="game-container">
         <h1>Number Crush</h1>
+        <div id="level-display"></div>
         <div class="score-board">Điểm: <span id="score">0</span> / <span id="target-score">100</span></div>
         <div id="game-board"></div>
     </div>
-    <div id="win-message">
-        <div>
-            <h2>You Win!</h2>
-        </div>
+    <div id="message-overlay">
+        <div id="message-content"></div>
     </div>
 
     <script>
@@ -110,30 +116,55 @@
             const gameBoard = document.getElementById('game-board');
             const scoreDisplay = document.getElementById('score');
             const targetScoreDisplay = document.getElementById('target-score');
-            const winMessage = document.getElementById('win-message');
+            const levelDisplay = document.getElementById('level-display');
+            const messageOverlay = document.getElementById('message-overlay');
+            const messageContent = document.getElementById('message-content');
 
             const width = 8;
-            const TARGET_SCORE = 100;
             const cells = [];
             let score = 0;
             let isProcessing = false;
             
-            const numberCandies = [
-                { name: 'one', color: '#e74c3c' },
-                { name: 'two', color: '#3498db' },
-                { name: 'three', color: '#2ecc71' },
-                { name: 'four', color: '#9b59b6' },
-                { name: 'five', color: '#f1c40f' },
-                { name: 'six', color: '#1abc9c' }
+            let currentLevel = 1;
+            const masterCandyList = {
+                'one':   { name: 'one',   color: '#e74c3c' }, 'two':   { name: 'two',   color: '#3498db' },
+                'three': { name: 'three', color: '#2ecc71' }, 'four':  { name: 'four',  color: '#9b59b6' },
+                'five':  { name: 'five',  color: '#f1c40f' }, 'six':   { name: 'six',   color: '#1abc9c' },
+                'seven': { name: 'seven', color: '#e67e22' }, 'eight': { name: 'eight', color: '#34495e' },
+                'nine':  { name: 'nine',  color: '#7f8c8d' }, 'ten':   { name: 'ten',   color: '#d35400' }
+            };
+            const levelConfig = [
+                { level: 1, targetScore: 100, candies: ['one', 'two', 'three', 'four', 'five', 'six'] },
+                { level: 2, targetScore: 250, candies: ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'] }
             ];
+            let currentCandies = [];
+            let currentTargetScore = 0;
 
             let cellBeingDragged = null;
             let cellBeingReplaced = null;
 
-            function init() {
-                targetScoreDisplay.textContent = TARGET_SCORE;
-                scoreDisplay.textContent = score;
+            function setupLevel(level) {
+                const config = levelConfig[level - 1];
+                if (!config) return;
 
+                currentLevel = config.level;
+                currentTargetScore = config.targetScore;
+                score = 0;
+                
+                currentCandies = config.candies.map(name => masterCandyList[name]);
+                
+                levelDisplay.textContent = `Vòng ${currentLevel}`;
+                scoreDisplay.textContent = score;
+                targetScoreDisplay.textContent = currentTargetScore;
+
+                gameBoard.innerHTML = '';
+                cells.length = 0;
+                isProcessing = false;
+                
+                createBoard();
+            }
+
+            function createBoard() {
                 for (let i = 0; i < width * width; i++) {
                     const cell = document.createElement('div');
                     cell.setAttribute('draggable', true);
@@ -150,7 +181,7 @@
                 for (let i = 0; i < cells.length; i++) {
                     let randomCandy;
                     do {
-                        randomCandy = numberCandies[Math.floor(Math.random() * numberCandies.length)];
+                        randomCandy = currentCandies[Math.floor(Math.random() * currentCandies.length)];
                     } while (
                         (i % width >= 2 && cells[i-1].textContent === randomCandy.name && cells[i-2].textContent === randomCandy.name) ||
                         (i >= width * 2 && cells[i-width].textContent === randomCandy.name && cells[i-2*width].textContent === randomCandy.name)
@@ -209,7 +240,7 @@
                         processMatches(matchesAfterSwap);
                     } else {
                         setTimeout(() => {
-                            swapContent(cellBeingDragged, cellBeingReplaced); // Hoán đổi lại
+                            swapContent(cellBeingDragged, cellBeingReplaced);
                             isProcessing = false;
                         }, 150);
                     }
@@ -225,11 +256,10 @@
                 updateCell(cell2, data1);
             }
 
-            // --- HỆ THỐNG XỬ LÝ ĐÃ ĐƯỢC VIẾT LẠI HOÀN TOÀN ---
             function processMatches(initialMatches) {
                 if (!initialMatches || initialMatches.size === 0) {
-                    isProcessing = false; // Không còn gì để xử lý, cho phép chơi tiếp
-                    checkForWin();
+                    isProcessing = false;
+                    checkLevelCompletion();
                     return;
                 }
                 
@@ -239,37 +269,36 @@
                 initialMatches.forEach(index => cells[index].classList.add('matched'));
                 
                 setTimeout(() => {
-                    // Xóa các ô đã khớp
                     initialMatches.forEach(index => {
                         updateCell(cells[index], null);
                         cells[index].classList.remove('matched');
                     });
                     
-                    // Cho các ô rơi xuống và lấp đầy
-                    applyGravityAndRefill().then(() => {
-                        // Sau khi đã ổn định, kiểm tra lại xem có chuỗi mới không
-                        const cascadeMatches = getMatches();
-                        processMatches(cascadeMatches); // Đệ quy để xử lý combo
-                    });
-
-                }, 400); // Đợi animation shrink hoàn thành
+                    applyGravityAndRefill();
+                    
+                    setTimeout(() => processMatches(getMatches()), 300);
+                }, 400);
             }
             
-            async function applyGravityAndRefill() {
-                // Logic trọng lực đáng tin cậy
+            /**
+             * HỆ THỐNG TRỌNG LỰC VÀ LẤP ĐẦY ĐÃ ĐƯỢC THAY THẾ BẰNG PHIÊN BẢN ỔN ĐỊNH NHẤT
+             */
+            function applyGravityAndRefill() {
+                // Bước 1: Trọng lực
                 for (let c = 0; c < width; c++) {
                     const columnData = [];
-                    // Đọc dữ liệu từ dưới lên
-                    for (let r = width - 1; r >= 0; r--) {
+                    // Đọc dữ liệu của cột từ trên xuống dưới
+                    for (let r = 0; r < width; r++) {
                         const cell = cells[r * width + c];
                         if (!cell.classList.contains('empty')) {
                             columnData.push({ name: cell.textContent, color: cell.style.backgroundColor });
                         }
                     }
-                    // Ghi dữ liệu lại từ dưới lên
+                    
+                    // Xóa và ghi lại dữ liệu cho cột đó, dồn xuống dưới
                     for (let r = width - 1; r >= 0; r--) {
                         const cell = cells[r * width + c];
-                        const data = columnData.shift(); // Lấy dữ liệu từ dưới cùng của cột
+                        const data = columnData.pop(); // Lấy từ cuối mảng (từ dưới cùng của cột)
                         if (data) {
                             updateCell(cell, data);
                         } else {
@@ -278,22 +307,19 @@
                     }
                 }
 
-                // Logic lấp đầy đáng tin cậy
+                // Bước 2: Lấp đầy các ô trống ở trên cùng
                 cells.forEach(cell => {
-                    if (cell.textContent === '') {
-                        let randomCandy = numberCandies[Math.floor(Math.random() * numberCandies.length)];
+                    if (cell.classList.contains('empty')) {
+                        let randomCandy = currentCandies[Math.floor(Math.random() * currentCandies.length)];
                         updateCell(cell, randomCandy);
                     }
                 });
-                // Thêm một khoảng chờ nhỏ để giao diện kịp cập nhật
-                await new Promise(resolve => setTimeout(resolve, 100));
             }
 
             function getMatches() {
                 const matchedIndices = new Set();
                 for (let r = 0; r < width; r++) {
                     for (let c = 0; c < width; c++) {
-                        // Check row
                         if (c < width - 2) {
                             const indices = [r*width+c, r*width+c+1, r*width+c+2];
                             const cell1 = cells[indices[0]];
@@ -301,7 +327,6 @@
                                 indices.forEach(i => matchedIndices.add(i));
                             }
                         }
-                        // Check column
                         if (r < width - 2) {
                             const indices = [r*width+c, (r+1)*width+c, (r+2)*width+c];
                             const cell1 = cells[indices[0]];
@@ -314,16 +339,27 @@
                 return matchedIndices;
             }
 
-            function checkForWin() {
-                if (score >= TARGET_SCORE && !isProcessing) { // Chỉ kích hoạt khi không còn xử lý
+            function checkLevelCompletion() {
+                if (score >= currentTargetScore) {
                     isProcessing = true;
-                    winMessage.style.display = 'flex';
-                    launchFireworks();
+                    const nextLevelIndex = currentLevel;
+                    if (levelConfig[nextLevelIndex]) {
+                        messageContent.innerHTML = `<h2>Vòng ${currentLevel} Hoàn Tất!</h2><p>Chuẩn bị cho Vòng ${nextLevelIndex + 1}</p>`;
+                        messageOverlay.style.display = 'flex';
+                        setTimeout(() => {
+                            messageOverlay.style.display = 'none';
+                            setupLevel(nextLevelIndex + 1);
+                        }, 3000);
+                    } else {
+                        messageContent.innerHTML = `<h2>You Win!</h2>`;
+                        messageOverlay.style.display = 'flex';
+                        launchFireworks();
+                    }
                 }
             }
 
             function launchFireworks() {
-                var duration = 3 * 1000;
+                var duration = 5 * 1000;
                 var animationEnd = Date.now() + duration;
                 var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 1001 };
                 function randomInRange(min, max) { return Math.random() * (max - min) + min; }
@@ -335,8 +371,8 @@
                     confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
                 }, 250);
             }
-
-            init();
+            
+            setupLevel(1);
         });
     </script>
 </body>
