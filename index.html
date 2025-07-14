@@ -92,9 +92,25 @@
         }
 
         .matched {
-            transform: scale(0.5);
-            opacity: 0.5;
-            transition: transform 0.3s, opacity 0.3s;
+            transform: scale(0);
+            opacity: 0;
+            transition: all 0.3s ease-in-out;
+        }
+
+        /* THAY ĐỔI: Thêm animation cho hiệu ứng rơi từ trên xuống */
+        .fall-in {
+            animation: fall-in-animation 0.5s ease-out;
+        }
+
+        @keyframes fall-in-animation {
+            from {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
         }
 
         #message-overlay { 
@@ -154,21 +170,17 @@
             function setupLevel(level) {
                 const config = levelConfig[level - 1];
                 if (!config) return;
-
                 currentLevel = config.level;
                 currentTargetScore = config.targetScore;
                 score = 0;
                 currentCandies = config.candies.map(name => masterCandyList[name]);
-                
                 levelDisplay.textContent = `Vòng ${currentLevel}`;
                 scoreDisplay.textContent = score;
                 targetScoreDisplay.textContent = currentTargetScore;
-
                 gameBoard.innerHTML = '';
                 cells.length = 0;
                 isProcessing = false;
                 firstCellClicked = null;
-                
                 createBoard();
             }
 
@@ -212,43 +224,35 @@
             
             function handleCellClick() {
                 if (isProcessing) return;
-                
                 const clickedCell = this;
-
                 if (!firstCellClicked) {
                     firstCellClicked = clickedCell;
                     firstCellClicked.classList.add('selected');
                     return;
                 }
-
                 const secondCellClicked = clickedCell;
                 firstCellClicked.classList.remove('selected');
-                
                 if (firstCellClicked === secondCellClicked) {
                     firstCellClicked = null;
                     return;
                 }
-                
                 const id1 = parseInt(firstCellClicked.dataset.id);
                 const id2 = parseInt(secondCellClicked.dataset.id);
                 const isAdjacent = Math.abs(id1 - id2) === 1 || Math.abs(id1 - id2) === width;
                 const isEdgeWrap = (id1 % width === 0 && id2 % width === width - 1) || (id2 % width === 0 && id1 % width === width - 1);
-
                 if (isAdjacent && !isEdgeWrap) {
                     isProcessing = true;
                     swapContent(firstCellClicked, secondCellClicked);
-                    
-                    if (getMatches().size > 0) {
+                    const isMatchFound = getMatches().size > 0;
+                    if (isMatchFound) {
                         processMatches();
                     } else {
-                        // Nếu không khớp, hoán đổi lại và cho phép chơi tiếp
                         setTimeout(() => {
                             swapContent(firstCellClicked, secondCellClicked);
                             isProcessing = false;
                         }, 200);
                     }
                 }
-                
                 firstCellClicked = null;
             }
             
@@ -259,69 +263,51 @@
                 updateCell(cell2, data1);
             }
 
-            // --- HỆ THỐNG XỬ LÝ ĐÃ ĐƯỢC VIẾT LẠI HOÀN TOÀN ---
             function processMatches() {
                 const matchedIndices = getMatches();
                 if (matchedIndices.size === 0) {
-                    isProcessing = false; // Không còn gì để xử lý, cho phép chơi tiếp
+                    isProcessing = false;
                     checkLevelCompletion();
                     return;
                 }
-                
                 score += matchedIndices.size;
                 scoreDisplay.textContent = score;
-                
-                // Đánh dấu và đợi animation
                 matchedIndices.forEach(index => cells[index].classList.add('matched'));
-                
                 setTimeout(() => {
-                    // Xóa các ô đã khớp
-                    matchedIndices.forEach(index => {
-                        updateCell(cells[index], null);
-                        cells[index].classList.remove('matched');
-                    });
-                    
-                    // Áp dụng trọng lực và lấp đầy
+                    matchedIndices.forEach(index => updateCell(cells[index], null));
                     applyGravity();
                     refillBoard();
-
-                    // Đệ quy để kiểm tra combo sau khi bảng đã ổn định
-                    setTimeout(processMatches, 300);
-
-                }, 400); 
+                    setTimeout(() => processMatches(getMatches()), 500);
+                }, 400);
             }
             
-            // Hàm trọng lực mới, ổn định
             function applyGravity() {
                 for (let c = 0; c < width; c++) {
                     const columnData = [];
-                    // Đọc dữ liệu của cột từ TRÊN xuống DƯỚI
-                    for (let r = 0; r < width; r++) {
+                    for (let r = width - 1; r >= 0; r--) {
                         const cell = cells[r * width + c];
                         if (!cell.classList.contains('empty')) {
                             columnData.push({ name: cell.textContent, color: cell.style.backgroundColor });
                         }
                     }
-                    
-                    // Xóa và ghi lại dữ liệu cho cột đó, dồn xuống dưới
                     for (let r = width - 1; r >= 0; r--) {
                         const cell = cells[r * width + c];
-                        const data = columnData.pop(); // Lấy từ cuối mảng (từ dưới cùng của cột)
-                        if (data) {
-                            updateCell(cell, data);
-                        } else {
-                            updateCell(cell, null);
-                        }
+                        const data = columnData.shift();
+                        updateCell(cell, data);
                     }
                 }
             }
             
-            // Hàm lấp đầy mới
             function refillBoard() {
-                cells.forEach(cell => {
-                    if (cell.textContent === '') {
+                 cells.forEach(cell => {
+                    if (cell.classList.contains('empty')) {
                         let randomCandy = currentCandies[Math.floor(Math.random() * currentCandies.length)];
                         updateCell(cell, randomCandy);
+                        // THAY ĐỔI: Thêm class animation và xóa đi khi hoàn thành
+                        cell.classList.add('fall-in');
+                        cell.addEventListener('animationend', () => {
+                            cell.classList.remove('fall-in');
+                        }, { once: true });
                     }
                 });
             }
@@ -332,13 +318,15 @@
                     for (let c = 0; c < width; c++) {
                         if (c < width - 2) {
                             const indices = [r*width+c, r*width+c+1, r*width+c+2];
-                            if (cells[indices[0]].textContent && cells[indices[0]].textContent === cells[indices[1]].textContent && cells[indices[0]].textContent === cells[indices[2]].textContent) {
+                            const cell1 = cells[indices[0]];
+                            if (!cell1.classList.contains('empty') && cell1.textContent === cells[indices[1]].textContent && cell1.textContent === cells[indices[2]].textContent) {
                                 indices.forEach(i => matchedIndices.add(i));
                             }
                         }
                         if (r < width - 2) {
                             const indices = [r*width+c, (r+1)*width+c, (r+2)*width+c];
-                             if (cells[indices[0]].textContent && cells[indices[0]].textContent === cells[indices[1]].textContent && cells[indices[0]].textContent === cells[indices[2]].textContent) {
+                            const cell1 = cells[indices[0]];
+                             if (!cell1.classList.contains('empty') && cell1.textContent === cells[indices[1]].textContent && cell1.textContent === cells[indices[2]].textContent) {
                                 indices.forEach(i => matchedIndices.add(i));
                             }
                         }
