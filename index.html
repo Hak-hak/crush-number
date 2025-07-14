@@ -23,7 +23,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: clamp(10px, 3vw, 25px); /* Co giãn padding */
+            padding: clamp(10px, 3vw, 25px);
             background-color: #ffffff;
             border-radius: 20px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.1);
@@ -34,7 +34,7 @@
             color: #ff793f;
             margin-bottom: 5px;
             text-shadow: 2px 2px #ffb142;
-            font-size: clamp(2rem, 6vw, 2.5rem); /* Co giãn font chữ */
+            font-size: clamp(2rem, 6vw, 2.5rem);
         }
         
         #level-display {
@@ -51,17 +51,14 @@
             margin-bottom: 15px;
         }
 
-        /* THAY ĐỔI LỚN: Kích thước bảng game co giãn */
         #game-board {
             display: grid;
-            grid-template-columns: repeat(8, 1fr); /* Chia thành 8 cột bằng nhau */
-            grid-template-rows: repeat(8, 1fr); /* Chia thành 8 hàng bằng nhau */
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
             gap: 5px;
             background-color: #ffb142;
             padding: 10px;
             border-radius: 12px;
-
-            /* Kích thước co giãn, không vượt quá 500px */
             width: 90vw; 
             height: 90vw;
             max-width: 500px;
@@ -72,7 +69,6 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            /* Font chữ co giãn theo kích thước ô */
             font-size: clamp(10px, 2.5vw, 16px); 
             font-weight: bold;
             color: white;
@@ -289,32 +285,45 @@
             }
             
             async function applyGravityAndRefill() {
+                // Bước 1: Trọng lực
                 for (let c = 0; c < width; c++) {
                     const columnData = [];
-                    for (let r = width - 1; r >= 0; r--) {
+                    // Đọc dữ liệu của cột từ TRÊN xuống DƯỚI
+                    for (let r = 0; r < width; r++) {
                         const cell = cells[r * width + c];
                         if (!cell.classList.contains('empty')) {
                             columnData.push({ name: cell.textContent, color: cell.style.backgroundColor });
                         }
                     }
+                    // Xóa và ghi lại dữ liệu cho cột đó, dồn xuống dưới
                     for (let r = width - 1; r >= 0; r--) {
                         const cell = cells[r * width + c];
-                        const data = columnData.shift();
-                        updateCell(cell, data);
+                        const data = columnData.pop(); // Lấy từ cuối mảng (từ dưới cùng của cột) và điền từ dưới lên
+                        if (data) {
+                            updateCell(cell, data);
+                        } else {
+                            updateCell(cell, null);
+                        }
                     }
                 }
+
+                // Bước 2: Lấp đầy
                 cells.forEach(cell => {
                     if (cell.classList.contains('empty')) {
                         let randomCandy = currentCandies[Math.floor(Math.random() * currentCandies.length)];
                         updateCell(cell, randomCandy);
                     }
                 });
+                
+                // Thêm một khoảng chờ nhỏ để đảm bảo giao diện ổn định
+                await new Promise(resolve => setTimeout(resolve, 100));
             }
 
             function getMatches() {
                 const matchedIndices = new Set();
                 for (let r = 0; r < width; r++) {
                     for (let c = 0; c < width; c++) {
+                        // Check row of 3
                         if (c < width - 2) {
                             const indices = [r*width+c, r*width+c+1, r*width+c+2];
                             const cell1 = cells[indices[0]];
@@ -322,43 +331,6 @@
                                 indices.forEach(i => matchedIndices.add(i));
                             }
                         }
+                        // Check column of 3
                         if (r < width - 2) {
                             const indices = [r*width+c, (r+1)*width+c, (r+2)*width+c];
-                            const cell1 = cells[indices[0]];
-                             if (cell1.textContent && cell1.textContent === cells[indices[1]].textContent && cell1.textContent === cells[indices[2]].textContent) {
-                                indices.forEach(i => matchedIndices.add(i));
-                            }
-                        }
-                    }
-                }
-                return matchedIndices;
-            }
-
-            function checkLevelCompletion() {
-                if (score >= currentTargetScore && !isProcessing) {
-                    isProcessing = true;
-                    const nextLevel = currentLevel + 1;
-                    if (levelConfig[nextLevel - 1]) {
-                        messageContent.innerHTML = `<h2>Vòng ${currentLevel} Hoàn Tất!</h2><p>Chuẩn bị cho Vòng ${nextLevel}</p>`;
-                        messageOverlay.style.display = 'flex';
-                        setTimeout(() => {
-                            messageOverlay.style.display = 'none';
-                            setupLevel(nextLevel);
-                        }, 3000);
-                    } else {
-                        messageContent.innerHTML = `<h2>You Win!</h2>`;
-                        messageOverlay.style.display = 'flex';
-                        launchFireworks();
-                    }
-                }
-            }
-
-            function launchFireworks() {
-                // ... (Không thay đổi)
-            }
-            
-            setupLevel(1);
-        });
-    </script>
-</body>
-</html>
