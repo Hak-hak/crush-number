@@ -80,6 +80,17 @@
             text-transform: capitalize;
         }
         
+        #game-board div.empty {
+            background-color: transparent !important;
+            box-shadow: none;
+        }
+
+        #game-board div.selected {
+            transform: scale(1.15);
+            box-shadow: 0 0 10px 3px #f1c40f;
+            z-index: 10;
+        }
+
         .matched {
             transform: scale(0);
         }
@@ -117,8 +128,8 @@
             const messageContent = document.getElementById('message-content');
 
             const width = 8;
-            let cells = [];  // Mảng chứa các thẻ div
-            let grid = [];   // Mảng chứa dữ liệu logic của game
+            let cells = [];
+            let grid = []; 
             let score = 0;
             let isProcessing = false;
             
@@ -142,18 +153,22 @@
             function setupLevel(level) {
                 const config = levelConfig[level - 1];
                 if (!config) return;
+
                 currentLevel = config.level;
                 currentTargetScore = config.targetScore;
                 score = 0;
                 currentCandies = config.candies.map(name => masterCandyList[name]);
+                
                 levelDisplay.textContent = `Vòng ${currentLevel}`;
                 scoreDisplay.textContent = score;
                 targetScoreDisplay.textContent = currentTargetScore;
+
                 gameBoard.innerHTML = '';
                 cells = [];
                 grid = [];
                 isProcessing = false;
                 firstCellClicked = null;
+                
                 createBoard();
             }
 
@@ -164,11 +179,13 @@
                     gameBoard.appendChild(cell);
                     cells.push(cell);
                 }
+                
                 grid = createInitialGrid();
                 syncGridToDOM();
+                
                 cells.forEach(cell => cell.addEventListener('pointerdown', handleCellClick));
             }
-
+            
             function createInitialGrid() {
                 let newGrid = [];
                 for (let i = 0; i < width * width; i++) {
@@ -192,10 +209,12 @@
                         cellDOM.textContent = candyData.name;
                         cellDOM.style.backgroundColor = candyData.color;
                         cellDOM.style.boxShadow = 'inset 0 -4px 0 rgba(0,0,0,0.2)';
+                        cellDOM.classList.remove('empty');
                     } else {
                         cellDOM.textContent = '';
                         cellDOM.style.backgroundColor = 'transparent';
                         cellDOM.style.boxShadow = 'none';
+                        cellDOM.classList.add('empty');
                     }
                 }
             }
@@ -203,35 +222,44 @@
             function handleCellClick() {
                 if (isProcessing) return;
                 const clickedCell = this;
+
                 if (!firstCellClicked) {
                     firstCellClicked = clickedCell;
                     firstCellClicked.classList.add('selected');
                     return;
                 }
+
                 const secondCellClicked = clickedCell;
                 firstCellClicked.classList.remove('selected');
+                
                 if (firstCellClicked === secondCellClicked) {
                     firstCellClicked = null;
                     return;
                 }
+                
                 const id1 = parseInt(firstCellClicked.dataset.id);
                 const id2 = parseInt(secondCellClicked.dataset.id);
-                const isAdjacent = Math.abs(id1 - id2) === 1 || Math.abs(id1 - id2) === width;
-                const isEdgeWrap = (id1 % width === 0 && id2 % width === width - 1) || (id2 % width === 0 && id1 % width === width - 1);
+                
+                const row1 = Math.floor(id1 / width); const col1 = id1 % width;
+                const row2 = Math.floor(id2 / width); const col2 = id2 % width;
+                const isAdjacent = (Math.abs(row1 - row2) === 1 && col1 === col2) || (Math.abs(col1 - col2) === 1 && row1 === row2);
 
-                if (isAdjacent && !isEdgeWrap) {
-                    isProcessing = true;
+                if (isAdjacent) {
+                    // Hoán đổi trên bảng logic trước để kiểm tra
                     [grid[id1], grid[id2]] = [grid[id2], grid[id1]];
                     const isMatchFound = getMatches(grid).size > 0;
                     
                     if (isMatchFound) {
+                        // Nếu đúng, cập nhật giao diện và bắt đầu xử lý
+                        isProcessing = true;
                         syncGridToDOM();
                         processMatches();
                     } else {
-                        [grid[id1], grid[id2]] = [grid[id2], grid[id1]]; // Hoán đổi lại trong logic
-                        isProcessing = false;
+                        // Nếu sai, hoán đổi lại trên bảng logic và không làm gì cả
+                        [grid[id1], grid[id2]] = [grid[id2], grid[id1]];
                     }
                 }
+                
                 firstCellClicked = null;
             }
             
@@ -322,7 +350,7 @@
             }
 
             function launchFireworks() {
-                 var duration = 5 * 1000;
+                var duration = 5 * 1000;
                 var animationEnd = Date.now() + duration;
                 var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 1001 };
                 function randomInRange(min, max) { return Math.random() * (max - min) + min; }
