@@ -75,7 +75,7 @@
             border-radius: 50%;
             cursor: pointer;
             user-select: none;
-            transition: transform 0.2s ease-in-out, background-color 0.2s, opacity 0.2s;
+            transition: transform 0.2s ease-in-out;
             box-shadow: inset 0 -4px 0 rgba(0,0,0,0.2);
             text-transform: capitalize;
         }
@@ -86,13 +86,23 @@
         }
 
         #game-board div.selected {
-            transform: scale(1.15);
+            transform: scale(1.1);
             box-shadow: 0 0 10px 3px #f1c40f;
             z-index: 10;
+        }
+        
+        /* THAY ĐỔI: Thêm animation cho gợi ý */
+        #game-board div.hint-blink {
+            animation: hint-pulse 1s infinite ease-in-out;
         }
 
         .matched {
             transform: scale(0);
+            transition: transform 0.3s ease-in-out;
+        }
+
+        @keyframes hint-pulse {
+            50% { transform: scale(1.1); }
         }
 
         #message-overlay { 
@@ -104,6 +114,7 @@
             animation: win-popup 0.5s ease;
         }
         #message-overlay h2 { font-size: 2rem; color: #28a745; margin: 0; }
+        #message-overlay p { font-size: 1rem; color: #6c757d; }
         @keyframes win-popup { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     </style>
 </head>
@@ -132,6 +143,7 @@
             let grid = []; 
             let score = 0;
             let isProcessing = false;
+            let hintTimer = null;
             
             let currentLevel = 1;
             const masterCandyList = {
@@ -153,22 +165,18 @@
             function setupLevel(level) {
                 const config = levelConfig[level - 1];
                 if (!config) return;
-
                 currentLevel = config.level;
                 currentTargetScore = config.targetScore;
                 score = 0;
                 currentCandies = config.candies.map(name => masterCandyList[name]);
-                
                 levelDisplay.textContent = `Vòng ${currentLevel}`;
                 scoreDisplay.textContent = score;
                 targetScoreDisplay.textContent = currentTargetScore;
-
                 gameBoard.innerHTML = '';
                 cells = [];
                 grid = [];
                 isProcessing = false;
                 firstCellClicked = null;
-                
                 createBoard();
             }
 
@@ -179,23 +187,20 @@
                     gameBoard.appendChild(cell);
                     cells.push(cell);
                 }
-                
                 grid = createInitialGrid();
                 syncGridToDOM();
-                
                 cells.forEach(cell => cell.addEventListener('pointerdown', handleCellClick));
+                startHintTimer();
             }
-            
+
             function createInitialGrid() {
                 let newGrid = [];
                 for (let i = 0; i < width * width; i++) {
-                    newGrid.push(currentCandies[Math.floor(Math.random() * currentCandies.length)]);
+                    newGrid.push(getRandomCandy());
                 }
                 let matches = getMatches(newGrid);
                 while (matches.size > 0) {
-                    matches.forEach(index => {
-                        newGrid[index] = currentCandies[Math.floor(Math.random() * currentCandies.length)];
-                    });
+                    matches.forEach(index => newGrid[index] = getRandomCandy());
                     matches = getMatches(newGrid);
                 }
                 return newGrid;
@@ -221,45 +226,40 @@
             
             function handleCellClick() {
                 if (isProcessing) return;
-                const clickedCell = this;
+                
+                // THAY ĐỔI: Reset gợi ý mỗi khi người chơi thao tác
+                resetHint();
+                startHintTimer();
 
+                const clickedCell = this;
                 if (!firstCellClicked) {
                     firstCellClicked = clickedCell;
                     firstCellClicked.classList.add('selected');
                     return;
                 }
-
                 const secondCellClicked = clickedCell;
                 firstCellClicked.classList.remove('selected');
-                
                 if (firstCellClicked === secondCellClicked) {
                     firstCellClicked = null;
                     return;
                 }
-                
                 const id1 = parseInt(firstCellClicked.dataset.id);
                 const id2 = parseInt(secondCellClicked.dataset.id);
-                
-                const row1 = Math.floor(id1 / width); const col1 = id1 % width;
-                const row2 = Math.floor(id2 / width); const col2 = id2 % width;
-                const isAdjacent = (Math.abs(row1 - row2) === 1 && col1 === col2) || (Math.abs(col1 - col2) === 1 && row1 === row2);
+                const isAdjacent = Math.abs(id1 - id2) === 1 || Math.abs(id1 - id2) === width;
+                const isEdgeWrap = (id1 % width === 0 && id2 % width === width - 1) || (id2 % width === 0 && id1 % width === width - 1);
 
-                if (isAdjacent) {
-                    // Hoán đổi trên bảng logic trước để kiểm tra
+                if (isAdjacent && !isEdgeWrap) {
+                    isProcessing = true;
                     [grid[id1], grid[id2]] = [grid[id2], grid[id1]];
                     const isMatchFound = getMatches(grid).size > 0;
-                    
                     if (isMatchFound) {
-                        // Nếu đúng, cập nhật giao diện và bắt đầu xử lý
-                        isProcessing = true;
                         syncGridToDOM();
                         processMatches();
                     } else {
-                        // Nếu sai, hoán đổi lại trên bảng logic và không làm gì cả
                         [grid[id1], grid[id2]] = [grid[id2], grid[id1]];
+                        isProcessing = false;
                     }
                 }
-                
                 firstCellClicked = null;
             }
             
@@ -267,15 +267,12 @@
                 const matches = getMatches(grid);
                 if (matches.size === 0) {
                     isProcessing = false;
-                    checkLevelCompletion();
+                    checkEndConditions();
                     return;
                 }
-                
                 score += matches.size;
                 scoreDisplay.textContent = score;
-                
                 matches.forEach(index => cells[index].classList.add('matched'));
-                
                 setTimeout(() => {
                     matches.forEach(index => grid[index] = null);
                     applyGravity();
@@ -290,27 +287,22 @@
                 for (let c = 0; c < width; c++) {
                     const column = [];
                     for (let r = 0; r < width; r++) {
-                        if (grid[r * width + c]) {
-                            column.push(grid[r * width + c]);
-                        }
+                        if (grid[r * width + c]) column.push(grid[r * width + c]);
                     }
                     for (let r = width - 1; r >= 0; r--) {
-                        const index = r * width + c;
-                        if (column.length > 0) {
-                            grid[index] = column.pop();
-                        } else {
-                            grid[index] = null;
-                        }
+                        grid[r * width + c] = column.pop() || null;
                     }
                 }
             }
             
             function refillBoard() {
                  grid.forEach((candy, index) => {
-                    if (candy === null) {
-                        grid[index] = currentCandies[Math.floor(Math.random() * currentCandies.length)];
-                    }
+                    if (candy === null) grid[index] = getRandomCandy();
                 });
+            }
+
+            function getRandomCandy() {
+                return currentCandies[Math.floor(Math.random() * currentCandies.length)];
             }
 
             function getMatches(board) {
@@ -329,10 +321,55 @@
                 }
                 return matchedIndices;
             }
+            
+            // --- HỆ THỐNG GỢI Ý VÀ KẾT THÚC GAME ---
+            function startHintTimer() {
+                clearTimeout(hintTimer);
+                hintTimer = setTimeout(showHint, 30000); // 30 giây
+            }
+            
+            function resetHint() {
+                cells.forEach(cell => cell.classList.remove('hint-blink'));
+            }
 
-            function checkLevelCompletion() {
-                if (score >= currentTargetScore && !isProcessing) {
-                    isProcessing = true;
+            function showHint() {
+                const move = findPossibleMove();
+                if (move) {
+                    cells[move.index1].classList.add('hint-blink');
+                    cells[move.index2].classList.add('hint-blink');
+                }
+            }
+            
+            function findPossibleMove() {
+                for (let i = 0; i < grid.length; i++) {
+                    const tempGrid = [...grid];
+                    const adjacent = [i + 1, i + width];
+                    for (const adj of adjacent) {
+                        if (adj < grid.length) {
+                             if (i % width === width - 1 && adj === i + 1) continue;
+                            [tempGrid[i], tempGrid[adj]] = [tempGrid[adj], tempGrid[i]];
+                            if (getMatches(tempGrid).size > 0) {
+                                return { index1: i, index2: adj };
+                            }
+                            [tempGrid[i], tempGrid[adj]] = [tempGrid[adj], tempGrid[i]];
+                        }
+                    }
+                }
+                return null;
+            }
+
+            function checkEndConditions() {
+                if (score >= currentTargetScore) {
+                    endGame(true);
+                } else if (!findPossibleMove()) {
+                    endGame(false);
+                }
+            }
+            
+            function endGame(isWin) {
+                isProcessing = true;
+                clearTimeout(hintTimer);
+                if (isWin) {
                     const nextLevel = currentLevel + 1;
                     if (levelConfig[nextLevel - 1]) {
                         messageContent.innerHTML = `<h2>Vòng ${currentLevel} Hoàn Tất!</h2><p>Chuẩn bị cho Vòng ${nextLevel}</p>`;
@@ -346,6 +383,9 @@
                         messageOverlay.style.display = 'flex';
                         launchFireworks();
                     }
+                } else {
+                    messageContent.innerHTML = `<h2>Game Over</h2><p>Hết nước đi!</p>`;
+                    messageOverlay.style.display = 'flex';
                 }
             }
 
