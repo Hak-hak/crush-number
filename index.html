@@ -1,421 +1,109 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Number Crush</title>
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            background-color: #f7f1e3;
-            margin: 0;
-            padding: 10px;
-            box-sizing: border-box;
-            touch-action: none;
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Game Chọn Đáp Án</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        background: #f0f8ff;
+        margin: 0;
+        padding: 0;
+    }
+    h1 {
+        margin-top: 20px;
+        color: #333;
+    }
+    #question {
+        font-size: 1.5em;
+        margin: 20px;
+    }
+    .answers {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        flex-wrap: wrap;
+        margin-top: 30px;
+    }
+    .answer {
+        background: #4CAF50;
+        color: white;
+        padding: 15px 25px;
+        border-radius: 8px;
+        cursor: pointer;
+        min-width: 100px;
+        animation: fallDown 0.8s ease forwards;
+        opacity: 0;
+    }
+    .answer:hover {
+        background: #45a049;
+    }
+    @keyframes fallDown {
+        0% {
+            transform: translateY(-150px);
+            opacity: 0;
         }
-        .game-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: clamp(10px, 3vw, 25px);
-            background-color: #ffffff;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            border: 5px solid #ffb142;
+        60% {
+            transform: translateY(20px);
+            opacity: 1;
         }
-        h1 {
-            color: #ff793f;
-            margin-bottom: 5px;
-            text-shadow: 2px 2px #ffb142;
-            font-size: clamp(2rem, 6vw, 2.5rem);
+        100% {
+            transform: translateY(0);
         }
-        #level-display {
-            font-size: clamp(1rem, 4vw, 1.2rem);
-            font-weight: bold;
-            color: #005a9c;
-            margin-bottom: 10px;
-        }
-        .score-board {
-            font-size: clamp(1.2rem, 5vw, 1.5rem);
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 15px;
-        }
-        #game-board {
-            display: grid;
-            grid-template-columns: repeat(8, 1fr);
-            grid-template-rows: repeat(8, 1fr);
-            gap: 5px;
-            background-color: #ffb142;
-            padding: 10px;
-            border-radius: 12px;
-            width: 90vw; 
-            height: 90vw;
-            max-width: 500px;
-            max-height: 500px;
-        }
-        #game-board div {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: clamp(10px, 2.5vw, 16px); 
-            font-weight: bold;
-            color: white;
-            border-radius: 50%;
-            cursor: pointer;
-            user-select: none;
-            transition: transform 0.2s ease-in-out;
-            box-shadow: inset 0 -4px 0 rgba(0,0,0,0.2);
-            text-transform: capitalize;
-        }
-        #game-board div.empty {
-            background-color: transparent !important;
-            box-shadow: none;
-        }
-        #game-board div.selected {
-            transform: scale(1.1);
-            box-shadow: 0 0 10px 3px #f1c40f;
-            z-index: 10;
-        }
-        #game-board div.hint-blink {
-            animation: hint-pulse 1s infinite ease-in-out;
-        }
-        .matched {
-            transform: scale(0);
-            transition: transform 0.3s ease-in-out;
-        }
-        @keyframes hint-pulse {
-            50% { transform: scale(1.1); }
-        }
-        #message-overlay { 
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background-color: rgba(0, 0, 0, 0.7); justify-content: center; align-items: center; z-index: 1000;
-        }
-        #message-overlay div { 
-            padding: 40px; background-color: white; border-radius: 20px; text-align: center; 
-            animation: win-popup 0.5s ease;
-        }
-        #message-overlay h2 { font-size: 2rem; color: #28a745; margin: 0; }
-        #message-overlay p { font-size: 1rem; color: #6c757d; }
-        @keyframes win-popup { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-    </style>
+    }
+</style>
 </head>
 <body>
-    <div class="game-container">
-        <h1>Number Crush</h1>
-        <div id="level-display"></div>
-        <div class="score-board">Điểm: <span id="score">0</span> / <span id="target-score">100</span></div>
-        <div id="game-board"></div>
-    </div>
-    <div id="message-overlay">
-        <div id="message-content"></div>
-    </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const gameBoard = document.getElementById('game-board');
-            const scoreDisplay = document.getElementById('score');
-            const targetScoreDisplay = document.getElementById('target-score');
-            const levelDisplay = document.getElementById('level-display');
-            const messageOverlay = document.getElementById('message-overlay');
-            const messageContent = document.getElementById('message-content');
+<h1>Game Chọn Đáp Án</h1>
+<div id="question">Câu hỏi sẽ hiện ở đây</div>
+<div class="answers" id="answers"></div>
 
-            const width = 8;
-            let cells = [];
-            let grid = []; 
-            let score = 0;
-            let isProcessing = false;
-            let hintTimer = null;
-            
-            let currentLevel = 1;
-            const masterCandyList = {
-                'one':   { name: 'one',   color: '#e74c3c' }, 'two':   { name: 'two',   color: '#3498db' },
-                'three': { name: 'three', color: '#2ecc71' }, 'four':  { name: 'four',  color: '#9b59b6' },
-                'five':  { name: 'five',  color: '#f1c40f' }, 'six':   { name: 'six',   color: '#1abc9c' },
-                'seven': { name: 'seven', color: '#e67e22' }, 'eight': { name: 'eight', color: '#34495e' },
-                'nine':  { name: 'nine',  color: '#7f8c8d' }, 'ten':   { name: 'ten',   color: '#d35400' }
-            };
-            const levelConfig = [
-                { level: 1, targetScore: 100, candies: ['one', 'two', 'three', 'four', 'five', 'six'] },
-                { level: 2, targetScore: 200, candies: ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight'] }
-            ];
-            let currentCandies = [];
-            let currentTargetScore = 0;
-            
-            let firstCellClicked = null;
+<script>
+const questions = [
+    { q: "Thủ đô của Việt Nam là gì?", options: ["Hà Nội", "Hồ Chí Minh", "Đà Nẵng", "Huế"], correct: 0 },
+    { q: "2 + 2 = ?", options: ["3", "4", "5", "6"], correct: 1 },
+    { q: "Trái đất quay quanh gì?", options: ["Mặt trời", "Mặt trăng", "Sao Hỏa", "Sao Kim"], correct: 0 }
+];
 
-            function setupLevel(level) {
-                const config = levelConfig[level - 1];
-                if (!config) return;
-                currentLevel = config.level;
-                currentTargetScore = config.targetScore;
-                score = 0;
-                currentCandies = config.candies.map(name => masterCandyList[name]);
-                levelDisplay.textContent = `Vòng ${currentLevel}`;
-                scoreDisplay.textContent = score;
-                targetScoreDisplay.textContent = currentTargetScore;
-                gameBoard.innerHTML = '';
-                cells = [];
-                grid = [];
-                isProcessing = false;
-                firstCellClicked = null;
-                createBoard();
-            }
+let currentQuestion = 0;
 
-            function createBoard() {
-                for (let i = 0; i < width * width; i++) {
-                    const cell = document.createElement('div');
-                    cell.dataset.id = i;
-                    gameBoard.appendChild(cell);
-                    cells.push(cell);
-                }
-                grid = createInitialGrid();
-                syncGridToDOM();
-                cells.forEach(cell => cell.addEventListener('pointerdown', handleCellClick));
-                startHintTimer();
-            }
+function loadQuestion() {
+    const questionEl = document.getElementById("question");
+    const answersEl = document.getElementById("answers");
+    const q = questions[currentQuestion];
 
-            function createInitialGrid() {
-                let newGrid;
-                do {
-                    newGrid = [];
-                    for (let i = 0; i < width * width; i++) {
-                        newGrid.push(getRandomCandy());
-                    }
-                    let matches = getMatches(newGrid);
-                    while (matches.size > 0) {
-                        matches.forEach(index => newGrid[index] = getRandomCandy());
-                        matches = getMatches(newGrid);
-                    }
-                } while (!findPossibleMoveInGrid(newGrid));
-                return newGrid;
-            }
+    questionEl.textContent = q.q;
+    answersEl.innerHTML = "";
 
-            function findPossibleMoveInGrid(testGrid) {
-                for (let i = 0; i < testGrid.length; i++) {
-                    const adjacent = [i + 1, i + width];
-                    for (const adj of adjacent) {
-                        if (adj < testGrid.length) {
-                            if (i % width === width - 1 && adj === i + 1) continue;
-                            [testGrid[i], testGrid[adj]] = [testGrid[adj], testGrid[i]];
-                            if (getMatches(testGrid).size > 0) {
-                                [testGrid[i], testGrid[adj]] = [testGrid[adj], testGrid[i]];
-                                return true;
-                            }
-                            [testGrid[i], testGrid[adj]] = [testGrid[adj], testGrid[i]];
-                        }
-                    }
-                }
-                return false;
-            }
+    q.options.forEach((option, index) => {
+        const btn = document.createElement("div");
+        btn.className = "answer";
+        btn.style.animationDelay = `${index * 0.15}s`; // rơi lần lượt
+        btn.textContent = option;
+        btn.onclick = () => checkAnswer(index);
+        answersEl.appendChild(btn);
+    });
+}
 
-            function syncGridToDOM() {
-                for(let i = 0; i < grid.length; i++) {
-                    const candyData = grid[i];
-                    const cellDOM = cells[i];
-                    if (candyData) {
-                        cellDOM.textContent = candyData.name;
-                        cellDOM.style.backgroundColor = candyData.color;
-                        cellDOM.style.boxShadow = 'inset 0 -4px 0 rgba(0,0,0,0.2)';
-                        cellDOM.classList.remove('empty');
-                    } else {
-                        cellDOM.textContent = '';
-                        cellDOM.style.backgroundColor = 'transparent';
-                        cellDOM.style.boxShadow = 'none';
-                        cellDOM.classList.add('empty');
-                    }
-                }
-            }
-            
-            function handleCellClick() {
-                if (isProcessing) return;
-                resetHint();
-                startHintTimer();
-                const clickedCell = this;
-                if (!firstCellClicked) {
-                    firstCellClicked = clickedCell;
-                    firstCellClicked.classList.add('selected');
-                    return;
-                }
-                const secondCellClicked = clickedCell;
-                firstCellClicked.classList.remove('selected');
-                if (firstCellClicked === secondCellClicked) {
-                    firstCellClicked = null;
-                    return;
-                }
-                const id1 = parseInt(firstCellClicked.dataset.id);
-                const id2 = parseInt(secondCellClicked.dataset.id);
-                const isAdjacent = Math.abs(id1 - id2) === 1 || Math.abs(id1 - id2) === width;
-                const isEdgeWrap = (id1 % width === 0 && id2 % width === width - 1) || (id2 % width === 0 && id1 % width === width - 1);
+function checkAnswer(index) {
+    if (index === questions[currentQuestion].correct) {
+        alert("Chính xác!");
+    } else {
+        alert("Sai rồi!");
+    }
+    currentQuestion++;
+    if (currentQuestion < questions.length) {
+        loadQuestion();
+    } else {
+        alert("Bạn đã hoàn thành game!");
+    }
+}
 
-                if (isAdjacent && !isEdgeWrap) {
-                    isProcessing = true;
-                    [grid[id1], grid[id2]] = [grid[id2], grid[id1]];
-                    const isMatchFound = getMatches(grid).size > 0;
-                    if (isMatchFound) {
-                        syncGridToDOM();
-                        processMatches();
-                    } else {
-                        [grid[id1], grid[id2]] = [grid[id2], grid[id1]];
-                        isProcessing = false;
-                    }
-                }
-                firstCellClicked = null;
-            }
-            
-            function processMatches() {
-                const matches = getMatches(grid);
-                if (matches.size === 0) {
-                    isProcessing = false;
-                    checkEndConditions();
-                    return;
-                }
-                score += matches.size;
-                scoreDisplay.textContent = score;
-                matches.forEach(index => cells[index].classList.add('matched'));
-                setTimeout(() => {
-                    matches.forEach(index => grid[index] = null);
-                    applyGravity();
-                    refillBoard();
-                    syncGridToDOM();
-                    matches.forEach(index => cells[index].classList.remove('matched'));
-                    setTimeout(processMatches, 400);
-                }, 400);
-            }
-            
-            function applyGravity() {
-                for (let c = 0; c < width; c++) {
-                    const column = [];
-                    for (let r = 0; r < width; r++) {
-                        if (grid[r * width + c]) column.push(grid[r * width + c]);
-                    }
-                    for (let r = width - 1; r >= 0; r--) {
-                        grid[r * width + c] = column.pop() || null;
-                    }
-                }
-            }
-            
-            function refillBoard() {
-                 grid.forEach((candy, index) => {
-                    if (candy === null) grid[index] = getRandomCandy();
-                });
-            }
+loadQuestion();
+</script>
 
-            function getRandomCandy() {
-                return currentCandies[Math.floor(Math.random() * currentCandies.length)];
-            }
-
-            function getMatches(board) {
-                const matchedIndices = new Set();
-                for (let r = 0; r < width; r++) {
-                    for (let c = 0; c < width; c++) {
-                        const candy = board[r*width+c];
-                        if (!candy) continue;
-                        if (c < width - 2 && board[r*width+c+1]?.name === candy.name && board[r*width+c+2]?.name === candy.name) {
-                            matchedIndices.add(r*width+c); matchedIndices.add(r*width+c+1); matchedIndices.add(r*width+c+2);
-                        }
-                        if (r < width - 2 && board[(r+1)*width+c]?.name === candy.name && board[(r+2)*width+c]?.name === candy.name) {
-                             matchedIndices.add(r*width+c); matchedIndices.add((r+1)*width+c); matchedIndices.add((r+2)*width+c);
-                        }
-                    }
-                }
-                return matchedIndices;
-            }
-            
-            function startHintTimer() {
-                clearTimeout(hintTimer);
-                hintTimer = setTimeout(showHint, 30000);
-            }
-            
-            function resetHint() {
-                cells.forEach(cell => cell.classList.remove('hint-blink'));
-            }
-
-            function showHint() {
-                const move = findPossibleMove();
-                if (move) {
-                    cells[move.index1].classList.add('hint-blink');
-                    cells[move.index2].classList.add('hint-blink');
-                }
-            }
-            
-            function findPossibleMove() {
-                for (let i = 0; i < grid.length; i++) {
-                    const tempGrid = [...grid];
-                    const adjacent = [i + 1, i + width];
-                    for (const adj of adjacent) {
-                        if (adj < grid.length) {
-                             if (i % width === width - 1 && adj === i + 1) continue;
-                            [tempGrid[i], tempGrid[adj]] = [tempGrid[adj], tempGrid[i]];
-                            if (getMatches(tempGrid).size > 0) {
-                                return { index1: i, index2: adj };
-                            }
-                            [tempGrid[i], tempGrid[adj]] = [tempGrid[adj], tempGrid[i]];
-                        }
-                    }
-                }
-                return null;
-            }
-
-            function shuffleBoard() {
-                do {
-                    grid.sort(() => Math.random() - 0.5);
-                } while (!findPossibleMove());
-                syncGridToDOM();
-            }
-
-            function checkEndConditions() {
-                if (score >= currentTargetScore) {
-                    endGame(true);
-                } else if (!findPossibleMove()) {
-                    shuffleBoard();
-                }
-            }
-            
-            function endGame(isWin) {
-                isProcessing = true;
-                clearTimeout(hintTimer);
-                if (isWin) {
-                    const nextLevel = currentLevel + 1;
-                    if (levelConfig[nextLevel - 1]) {
-                        messageContent.innerHTML = `<h2>Vòng ${currentLevel} Hoàn Tất!</h2><p>Chuẩn bị cho Vòng ${nextLevel}</p>`;
-                        messageOverlay.style.display = 'flex';
-                        setTimeout(() => {
-                            messageOverlay.style.display = 'none';
-                            setupLevel(nextLevel);
-                        }, 3000);
-                    } else {
-                        messageContent.innerHTML = `<h2>You Win!</h2>`;
-                        messageOverlay.style.display = 'flex';
-                        launchFireworks();
-                    }
-                } else {
-                    messageContent.innerHTML = `<h2>Game Over</h2><p>Hết nước đi!</p>`;
-                    messageOverlay.style.display = 'flex';
-                }
-            }
-
-            function launchFireworks() {
-                var duration = 5 * 1000;
-                var animationEnd = Date.now() + duration;
-                var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 1001 };
-                function randomInRange(min, max) { return Math.random() * (max - min) + min; }
-                var interval = setInterval(function() {
-                    var timeLeft = animationEnd - Date.now();
-                    if (timeLeft <= 0) return clearInterval(interval);
-                    var particleCount = 50 * (timeLeft / duration);
-                    confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
-                    confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
-                }, 250);
-            }
-            
-            setupLevel(1);
-        });
-    </script>
 </body>
 </html>
