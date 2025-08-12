@@ -103,6 +103,21 @@
         #message-overlay h2 { font-size: 2rem; color: #28a745; margin: 0; }
         #message-overlay p { font-size: 1rem; color: #6c757d; }
         @keyframes win-popup { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        /* Thêm vào phần style */
+.falling {
+    animation: fall 0.4s ease forwards;
+}
+
+@keyframes fall {
+    from {
+        transform: translateY(-100%);
+        opacity: 0.3;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
     </style>
 </head>
 <body>
@@ -305,6 +320,59 @@
                     if (candy === null) grid[index] = getRandomCandy();
                 });
             }
+            // Thay applyGravity() và refillBoard() trong script của bạn
+
+function applyGravity() {
+    for (let c = 0; c < width; c++) {
+        let emptySpaces = 0;
+        for (let r = width - 1; r >= 0; r--) {
+            const index = r * width + c;
+            if (!grid[index]) {
+                emptySpaces++;
+            } else if (emptySpaces > 0) {
+                // Kẹo cũ rơi xuống
+                const targetIndex = (r + emptySpaces) * width + c;
+                grid[targetIndex] = grid[index];
+                grid[index] = null;
+
+                const cellDOM = cells[targetIndex];
+                cellDOM.textContent = grid[targetIndex].name;
+                cellDOM.style.backgroundColor = grid[targetIndex].color;
+                cellDOM.classList.remove('empty');
+
+                cellDOM.style.animationDelay = `${emptySpaces * 0.05}s`;
+                cellDOM.classList.add('falling');
+                setTimeout(() => {
+                    cellDOM.classList.remove('falling');
+                    cellDOM.style.animationDelay = '0s';
+                }, 500 + emptySpaces * 50);
+            }
+        }
+    }
+}
+
+function refillBoard() {
+    grid.forEach((candy, index) => {
+        if (candy === null) {
+            const newCandy = getRandomCandy();
+            grid[index] = newCandy;
+
+            const cellDOM = cells[index];
+            cellDOM.textContent = newCandy.name;
+            cellDOM.style.backgroundColor = newCandy.color;
+            cellDOM.classList.remove('empty');
+
+            const row = Math.floor(index / width);
+            cellDOM.style.animationDelay = `${row * 0.05}s`;
+            cellDOM.classList.add('falling');
+
+            setTimeout(() => {
+                cellDOM.classList.remove('falling');
+                cellDOM.style.animationDelay = '0s';
+            }, 500 + row * 50);
+        }
+    });
+}
 
             function getRandomCandy() {
                 return currentCandies[Math.floor(Math.random() * currentCandies.length)];
