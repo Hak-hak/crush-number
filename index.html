@@ -18,7 +18,6 @@
             box-sizing: border-box;
             touch-action: none;
         }
-
         .game-container {
             display: flex;
             flex-direction: column;
@@ -29,28 +28,24 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             border: 5px solid #ffb142;
         }
-        
         h1 {
             color: #ff793f;
             margin-bottom: 5px;
             text-shadow: 2px 2px #ffb142;
             font-size: clamp(2rem, 6vw, 2.5rem);
         }
-        
         #level-display {
             font-size: clamp(1rem, 4vw, 1.2rem);
             font-weight: bold;
             color: #005a9c;
             margin-bottom: 10px;
         }
-
         .score-board {
             font-size: clamp(1.2rem, 5vw, 1.5rem);
             font-weight: bold;
             color: #333;
             margin-bottom: 15px;
         }
-
         #game-board {
             display: grid;
             grid-template-columns: repeat(8, 1fr);
@@ -64,7 +59,6 @@
             max-width: 500px;
             max-height: 500px;
         }
-
         #game-board div {
             display: flex;
             justify-content: center;
@@ -79,32 +73,25 @@
             box-shadow: inset 0 -4px 0 rgba(0,0,0,0.2);
             text-transform: capitalize;
         }
-        
         #game-board div.empty {
             background-color: transparent !important;
             box-shadow: none;
         }
-
         #game-board div.selected {
             transform: scale(1.1);
             box-shadow: 0 0 10px 3px #f1c40f;
             z-index: 10;
         }
-        
-        /* THAY ĐỔI: Thêm animation cho gợi ý */
         #game-board div.hint-blink {
             animation: hint-pulse 1s infinite ease-in-out;
         }
-
         .matched {
             transform: scale(0);
             transition: transform 0.3s ease-in-out;
         }
-
         @keyframes hint-pulse {
             50% { transform: scale(1.1); }
         }
-
         #message-overlay { 
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background-color: rgba(0, 0, 0, 0.7); justify-content: center; align-items: center; z-index: 1000;
@@ -155,7 +142,7 @@
             };
             const levelConfig = [
                 { level: 1, targetScore: 100, candies: ['one', 'two', 'three', 'four', 'five', 'six'] },
-                { level: 2, targetScore: 250, candies: ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'] }
+                { level: 2, targetScore: 200, candies: ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight'] }
             ];
             let currentCandies = [];
             let currentTargetScore = 0;
@@ -194,16 +181,37 @@
             }
 
             function createInitialGrid() {
-                let newGrid = [];
-                for (let i = 0; i < width * width; i++) {
-                    newGrid.push(getRandomCandy());
-                }
-                let matches = getMatches(newGrid);
-                while (matches.size > 0) {
-                    matches.forEach(index => newGrid[index] = getRandomCandy());
-                    matches = getMatches(newGrid);
-                }
+                let newGrid;
+                do {
+                    newGrid = [];
+                    for (let i = 0; i < width * width; i++) {
+                        newGrid.push(getRandomCandy());
+                    }
+                    let matches = getMatches(newGrid);
+                    while (matches.size > 0) {
+                        matches.forEach(index => newGrid[index] = getRandomCandy());
+                        matches = getMatches(newGrid);
+                    }
+                } while (!findPossibleMoveInGrid(newGrid));
                 return newGrid;
+            }
+
+            function findPossibleMoveInGrid(testGrid) {
+                for (let i = 0; i < testGrid.length; i++) {
+                    const adjacent = [i + 1, i + width];
+                    for (const adj of adjacent) {
+                        if (adj < testGrid.length) {
+                            if (i % width === width - 1 && adj === i + 1) continue;
+                            [testGrid[i], testGrid[adj]] = [testGrid[adj], testGrid[i]];
+                            if (getMatches(testGrid).size > 0) {
+                                [testGrid[i], testGrid[adj]] = [testGrid[adj], testGrid[i]];
+                                return true;
+                            }
+                            [testGrid[i], testGrid[adj]] = [testGrid[adj], testGrid[i]];
+                        }
+                    }
+                }
+                return false;
             }
 
             function syncGridToDOM() {
@@ -226,11 +234,8 @@
             
             function handleCellClick() {
                 if (isProcessing) return;
-                
-                // THAY ĐỔI: Reset gợi ý mỗi khi người chơi thao tác
                 resetHint();
                 startHintTimer();
-
                 const clickedCell = this;
                 if (!firstCellClicked) {
                     firstCellClicked = clickedCell;
@@ -322,10 +327,9 @@
                 return matchedIndices;
             }
             
-            // --- HỆ THỐNG GỢI Ý VÀ KẾT THÚC GAME ---
             function startHintTimer() {
                 clearTimeout(hintTimer);
-                hintTimer = setTimeout(showHint, 30000); // 30 giây
+                hintTimer = setTimeout(showHint, 30000);
             }
             
             function resetHint() {
@@ -358,11 +362,18 @@
                 return null;
             }
 
+            function shuffleBoard() {
+                do {
+                    grid.sort(() => Math.random() - 0.5);
+                } while (!findPossibleMove());
+                syncGridToDOM();
+            }
+
             function checkEndConditions() {
                 if (score >= currentTargetScore) {
                     endGame(true);
                 } else if (!findPossibleMove()) {
-                    endGame(false);
+                    shuffleBoard();
                 }
             }
             
